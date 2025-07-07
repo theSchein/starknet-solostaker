@@ -36,7 +36,7 @@ show_help() {
     echo
     echo "Commands:"
     echo "  status      - Check validator status and health"
-    echo "  update      - Update Docker images and restart services"
+    echo "  update      - Update from Git repository and restart services"
     echo "  backup      - Create backup of validator data"
     echo "  restore     - Restore from backup"
     echo "  logs        - Show recent logs from all services"
@@ -111,9 +111,59 @@ check_status() {
     docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" | head -10
 }
 
-# Update Docker images
+# Update from Git repository and Docker images
 update_images() {
-    log "Updating Docker images..."
+    log "Updating validator from Git repository..."
+    
+    # Check if we're in a git repository
+    if [ ! -d ".git" ]; then
+        warn "Not a Git repository. Updating Docker images only..."
+        update_docker_only
+        return
+    fi
+    
+    # Create backup before update (includes config files)
+    warn "Creating backup before update..."
+    create_backup "pre-update"
+    
+    # Pull latest changes from Git
+    info "Pulling latest changes from repository..."
+    if ! git pull origin main 2>/dev/null; then
+        if ! git pull origin master 2>/dev/null; then
+            warn "Could not pull from remote. Continuing with Docker update only..."
+        fi
+    fi
+    
+    # Restore sensitive files from backup
+    info "Restoring sensitive configuration files..."
+    restore_sensitive_files
+    
+    # Pull latest Docker images
+    info "Pulling latest Docker images..."
+    docker-compose pull
+    
+    # Stop services
+    info "Stopping services..."
+    docker-compose down
+    
+    # Start with updated configuration and images
+    info "Starting services with updated configuration..."
+    docker-compose up -d
+    
+    # Wait for services to start
+    sleep 10
+    
+    # Check status
+    info "Checking service status after update..."
+    docker-compose ps
+    
+    log "Update completed successfully!"
+    info "Monitor logs with: ./maintenance.sh logs"
+}
+
+# Update Docker images only (fallback)
+update_docker_only() {
+    log "Updating Docker images only..."
     
     # Create backup before update
     warn "Creating backup before update..."
@@ -138,7 +188,52 @@ update_images() {
     info "Checking service status after update..."
     docker-compose ps
     
-    log "Update completed successfully!"
+    log "Docker update completed successfully!"
+}
+
+# Restore sensitive files from backup
+restore_sensitive_files() {
+    local backup_dir="backups"
+    local latest_backup=$(ls -t "$backup_dir"/validator_backup_pre-update_*.tar.gz 2>/dev/null | head -1)
+    
+    if [[ -z "$latest_backup" ]]; then
+        warn "No pre-update backup found. Skipping sensitive file restoration."
+        return
+    fi
+    
+    # Create temporary directory for extraction
+    local temp_dir=$(mktemp -d)
+    
+    # Extract backup to temp directory
+    tar -xzf "$latest_backup" -C "$temp_dir" 2>/dev/null || true
+    
+    # Restore JWT token if missing
+    if [[ -f "$temp_dir/config/jwt.hex" ]] && [[ ! -f "config/jwt.hex" ]]; then
+        info "Restoring JWT token..."
+        cp "$temp_dir/config/jwt.hex" config/
+        chmod 600 config/jwt.hex
+    fi
+    
+    # Restore validator key if missing
+    if [[ -f "$temp_dir/config/validator.key" ]] && [[ ! -f "config/validator.key" ]]; then
+        info "Restoring validator key..."
+        cp "$temp_dir/config/validator.key" config/
+        chmod 600 config/validator.key
+    fi
+    
+    # Restore operational address in juno.yaml
+    if [[ -f "$temp_dir/config/juno.yaml" ]]; then
+        local operational_address=$(grep "operational-address:" "$temp_dir/config/juno.yaml" | grep -v "^#" | cut -d'"' -f2 2>/dev/null || true)
+        if [[ -n "$operational_address" ]] && [[ "$operational_address" != "0x..." ]]; then
+            info "Restoring operational address in juno.yaml..."
+            sed -i "s/# operational-address: \"0x...\"/operational-address: \"$operational_address\"/" config/juno.yaml
+        fi
+    fi
+    
+    # Clean up temp directory
+    rm -rf "$temp_dir"
+    
+    info "Sensitive files restored successfully"
 }
 
 # Create backup
