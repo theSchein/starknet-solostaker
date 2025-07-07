@@ -1,0 +1,54 @@
+# Data directories - contain blockchain data that should not be committed
+data/
+**/data/
+
+# Sensitive files - contain private keys and secrets
+config/jwt.hex
+config/validator.key
+config/*.key
+config/*.pem
+*.key
+*.pem
+jwt.hex
+*.hex 
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Docker volumes and temporary files
+docker-compose.override.yml
+.docker/
+
+# Backup files
+*_backup_*
+*.backup
+*.bak
+
+# System files
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+*~
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+.cluade/
+.cursor/
+
+# Logs
+*.log
+logs/
+
+# OS generated files
+.directory
+.fuse_hidden*
+.nfs*
+
+# Temporary validator files
+validator_wallet/
+keystore/

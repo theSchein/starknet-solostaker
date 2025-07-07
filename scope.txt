@@ -1,0 +1,22 @@
+# Solo Staking Starknet validator
+
+I am setting up a validator for the starknet l2 blockchain. I have my required funds, hardware, and internet connections. This private repo will be used to standardize the staking setup. It will run natively on boot through deamons.
+
+## Configuration
+- Ubuntu OS
+- Nethermind Execution client
+- Lighthouse Consensus client
+- Juno Starknet clinet
+
+## Requirements
+- all software will run locally on the computer
+- this repo will contian a fault tolerant bash script(s) to confirm install/check for updates, and get all clients running
+- testing will be done locally in another instance before copying the repo over to the validator hardware
+
+## References
+- https://docs.starknet.io/architecture/staking/
+- https://juno.nethermind.io/running-juno/
+- https://juno.nethermind.io/staking-validator
+- https://lighthouse-book.sigmaprime.io/
+- https://docs.nethermind.io/get-started/running-node/
+

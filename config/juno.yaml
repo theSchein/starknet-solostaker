@@ -1,0 +1,18 @@
+network: "mainnet"
+eth-node: "http://nethermind:8545"  # Use HTTP instead of WebSocket to avoid JWT auth issues
+db-path: "/var/lib/juno"
+http: true
+http-port: 6060
+http-host: "0.0.0.0"
+log-level: "INFO"
+colour: true
+pending-poll-interval: "1s"
+rpc-max-block-scan: 100000
+
+# Validator Configuration
+validator: true
+validator-name: "starknet-validator"
+# operational-address: "0x..." # Set after staking - your operational wallet address
+validator-private-key-file: "/var/lib/juno/validator.key" # Path to encrypted private key
+attestation-enabled: true
+attestation-interval: "12s"  # Block time for attestations
