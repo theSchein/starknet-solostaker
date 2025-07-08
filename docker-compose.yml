@@ -9,11 +9,12 @@ services:
       - "8546:8546"     # JSON-RPC WebSocket
       - "30303:30303"   # P2P
     volumes:
-      - ./data/nethermind:/nethermind/data
+      - ./data/nethermind/nethermind_db:/nethermind/nethermind_db
+      - ./data/nethermind/logs:/nethermind/logs
+      - ./data/nethermind/keystore:/nethermind/keystore
       - ./config/jwt.hex:/nethermind/jwt.hex:ro
     command: >
       --config mainnet
-      --datadir /nethermind/data
       --JsonRpc.Enabled true
       --JsonRpc.Host 0.0.0.0
       --JsonRpc.Port 8545
