@@ -16,6 +16,7 @@ jwt.hex
 .env
 .env.local
 .env.production
+scope.txt
 
 # Docker volumes and temporary files
 docker-compose.override.yml

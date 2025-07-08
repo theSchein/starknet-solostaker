@@ -122,9 +122,9 @@ update_images() {
         return
     fi
     
-    # Create backup before update (includes config files)
-    warn "Creating backup before update..."
-    create_backup "pre-update"
+    # Create lightweight backup of sensitive files only (no data folder)
+    warn "Creating backup of sensitive files..."
+    create_config_backup "pre-update"
     
     # Pull latest changes from Git
     info "Pulling latest changes from repository..."
@@ -194,10 +194,10 @@ update_docker_only() {
 # Restore sensitive files from backup
 restore_sensitive_files() {
     local backup_dir="backups"
-    local latest_backup=$(ls -t "$backup_dir"/validator_backup_pre-update_*.tar.gz 2>/dev/null | head -1)
+    local latest_backup=$(ls -t "$backup_dir"/validator_config_backup_pre-update_*.tar.gz 2>/dev/null | head -1)
     
     if [[ -z "$latest_backup" ]]; then
-        warn "No pre-update backup found. Skipping sensitive file restoration."
+        warn "No pre-update config backup found. Skipping sensitive file restoration."
         return
     fi
     
@@ -234,6 +234,36 @@ restore_sensitive_files() {
     rm -rf "$temp_dir"
     
     info "Sensitive files restored successfully"
+}
+
+# Create lightweight backup of config files only (no data folder)
+create_config_backup() {
+    local backup_name="${1:-manual}"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_dir="backups"
+    local backup_file="${backup_dir}/validator_config_backup_${backup_name}_${timestamp}.tar.gz"
+    
+    log "Creating config backup: $backup_file"
+    
+    # Create backup directory
+    mkdir -p "$backup_dir"
+    
+    # Create backup of config files only (no data folder)
+    info "Creating config backup archive..."
+    tar -czf "$backup_file" \
+        --exclude='*.log' \
+        --exclude='backups' \
+        config/ docker-compose.yml *.txt *.sh 2>/dev/null || true
+    
+    # Show backup info
+    local backup_size=$(du -h "$backup_file" | cut -f1)
+    info "Config backup created: $backup_file ($backup_size)"
+    
+    # Clean old config backups (keep last 10)
+    info "Cleaning old config backups..."
+    ls -t "$backup_dir"/validator_config_backup_*.tar.gz | tail -n +11 | xargs -r rm -f
+    
+    log "Config backup completed successfully!"
 }
 
 # Create backup

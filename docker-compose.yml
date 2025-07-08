@@ -73,6 +73,9 @@ services:
       - ./data/juno:/var/lib/juno
       - ./config/juno.yaml:/etc/juno/juno.yaml:ro
       - ./config/validator.key:/var/lib/juno/validator.key:ro
+    environment:
+      - VALIDATOR_NAME=${VALIDATOR_NAME:-starknet-validator}
+      - OPERATIONAL_ADDRESS=${OPERATIONAL_ADDRESS}
     command: >
       --config /etc/juno/juno.yaml
       --db-path /var/lib/juno
@@ -90,6 +93,16 @@ services:
       start_period: 180s
     networks:
       - starknet-network
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: '4'
+        reservations:
+          memory: 4G
+          cpus: '2'
+    tmpfs:
+      - /tmp:size=2G,noatime
 
   prometheus:
     image: prom/prometheus:latest
