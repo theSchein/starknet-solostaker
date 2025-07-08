@@ -58,7 +58,7 @@ check_status() {
     
     # Container status
     info "Container Status:"
-    docker-compose ps
+    docker compose ps
     echo
     
     # Sync status
@@ -140,22 +140,22 @@ update_images() {
     
     # Pull latest Docker images
     info "Pulling latest Docker images..."
-    docker-compose pull
+    docker compose pull
     
     # Stop services
     info "Stopping services..."
-    docker-compose down
+    docker compose down
     
     # Start with updated configuration and images
     info "Starting services with updated configuration..."
-    docker-compose up -d
+    docker compose up -d
     
     # Wait for services to start
     sleep 10
     
     # Check status
     info "Checking service status after update..."
-    docker-compose ps
+    docker compose ps
     
     log "Update completed successfully!"
     info "Monitor logs with: ./maintenance.sh logs"
@@ -171,22 +171,22 @@ update_docker_only() {
     
     # Pull latest images
     info "Pulling latest Docker images..."
-    docker-compose pull
+    docker compose pull
     
     # Stop services
     info "Stopping services..."
-    docker-compose down
+    docker compose down
     
     # Start with new images
     info "Starting services with updated images..."
-    docker-compose up -d
+    docker compose up -d
     
     # Wait for services to start
     sleep 10
     
     # Check status
     info "Checking service status after update..."
-    docker-compose ps
+    docker compose ps
     
     log "Docker update completed successfully!"
 }
@@ -253,7 +253,7 @@ create_config_backup() {
     tar -czf "$backup_file" \
         --exclude='*.log' \
         --exclude='backups' \
-        config/ docker-compose.yml *.txt *.sh 2>/dev/null || true
+        config/ docker compose.yml *.txt *.sh 2>/dev/null || true
     
     # Show backup info
     local backup_size=$(du -h "$backup_file" | cut -f1)
@@ -280,18 +280,18 @@ create_backup() {
     
     # Stop services for consistent backup
     info "Stopping services for backup..."
-    docker-compose down
+    docker compose down
     
     # Create backup
     info "Creating backup archive..."
     tar -czf "$backup_file" \
         --exclude='*.log' \
         --exclude='backups' \
-        data/ config/ docker-compose.yml *.txt 2>/dev/null || true
+        data/ config/ docker compose.yml *.txt 2>/dev/null || true
     
     # Restart services
     info "Restarting services..."
-    docker-compose up -d
+    docker compose up -d
     
     # Show backup info
     local backup_size=$(du -h "$backup_file" | cut -f1)
@@ -340,7 +340,7 @@ restore_backup() {
     
     # Stop services
     info "Stopping services..."
-    docker-compose down
+    docker compose down
     
     # Remove current data
     info "Removing current data..."
@@ -352,7 +352,7 @@ restore_backup() {
     
     # Restart services
     info "Starting services..."
-    docker-compose up -d
+    docker compose up -d
     
     log "Restore completed successfully!"
 }
@@ -364,23 +364,23 @@ show_logs() {
     
     if [[ -n "$service" ]]; then
         info "Showing logs for $service (last $lines lines):"
-        docker-compose logs --tail="$lines" "$service"
+        docker compose logs --tail="$lines" "$service"
     else
         info "Showing logs for all services (last $lines lines):"
-        docker-compose logs --tail="$lines"
+        docker compose logs --tail="$lines"
     fi
 }
 
 # Restart services
 restart_services() {
     log "Restarting all services..."
-    docker-compose restart
+    docker compose restart
     
     # Wait for services to start
     sleep 10
     
     info "Service status after restart:"
-    docker-compose ps
+    docker compose ps
 }
 
 # Reset and resync
@@ -399,7 +399,7 @@ reset_validator() {
     
     # Stop services
     info "Stopping services..."
-    docker-compose down
+    docker compose down
     
     # Remove data
     info "Removing all data..."
@@ -413,7 +413,7 @@ reset_validator() {
     
     # Start services
     info "Starting services..."
-    docker-compose up -d
+    docker compose up -d
     
     log "Reset completed. Services will start syncing from scratch."
 }

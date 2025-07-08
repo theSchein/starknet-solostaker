@@ -35,7 +35,7 @@ check_docker() {
         exit 1
     fi
     
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker &> /dev/null || ! docker compose version &> /dev/null; then
         error "Docker Compose is not installed. Please install Docker Compose first."
         exit 1
     fi
@@ -52,7 +52,6 @@ setup_directories() {
     log "Setting up directory structure..."
     
     mkdir -p data/{nethermind,lighthouse,juno,prometheus,grafana}
-    mkdir -p config/grafana/provisioning/{dashboards,datasources}
     
     # Set proper permissions
     chmod 755 data/{nethermind,lighthouse,juno,prometheus}
@@ -61,202 +60,76 @@ setup_directories() {
     info "Directory structure created"
 }
 
-# Generate JWT secret
+# Generate JWT secret if it doesn't exist
 generate_jwt_secret() {
-    log "Generating JWT secret for client authentication..."
+    log "Checking JWT secret..."
     
     if [[ ! -f config/jwt.hex ]]; then
+        warn "JWT secret not found. Generating new one..."
         openssl rand -hex 32 > config/jwt.hex
         chmod 600 config/jwt.hex
+        info "JWT secret generated at config/jwt.hex"
+    else
+        info "JWT secret already exists"
+    fi
+}
+
+# Create .env file from template
+create_env_file() {
+    log "Setting up environment configuration..."
+    
+    if [[ ! -f .env ]]; then
+        if [[ -f .env.example ]]; then
+            cp .env.example .env
+            info "Created .env file from template"
+            warn "Please edit .env file with your validator configuration"
+        else
+            error ".env.example not found"
+            exit 1
+        fi
+    else
+        info ".env file already exists"
+    fi
+}
+
+# Validate configuration
+validate_config() {
+    log "Validating configuration..."
+    
+    # Check required files exist
+    local required_files=("docker-compose.yml" "config/juno.yaml" ".env")
+    
+    for file in "${required_files[@]}"; do
+        if [[ ! -f "$file" ]]; then
+            error "Required file missing: $file"
+            exit 1
+        fi
+    done
+    
+    # Check .env has required variables
+    if ! grep -q "VALIDATOR_NAME" .env || ! grep -q "OPERATIONAL_ADDRESS" .env; then
+        error "Missing required environment variables in .env file"
+        exit 1
     fi
     
-    info "JWT secret generated at config/jwt.hex"
+    info "Configuration validation passed"
 }
 
-# Create Nethermind configuration
-create_nethermind_config() {
-    log "Creating Nethermind configuration..."
-    
-    cat > config/nethermind.cfg << EOF
-[JsonRpc]
-Enabled=true
-Host=0.0.0.0
-Port=8545
-WebSocketsPort=8546
-JwtSecretFile=/nethermind/jwt.hex
-
-[Network]
-P2PPort=30303
-DiscoveryPort=30303
-
-[Logging]
-LogLevel=Info
-
-[Sync]
-FastSync=true
-PivotNumber=0
-PivotHash=0x0000000000000000000000000000000000000000000000000000000000000000
-
-[EthStats]
-Enabled=false
-
-[Metrics]
-Enabled=true
-PushGatewayUrl=http://prometheus:9090
-EOF
-    
-    info "Nethermind configuration created"
+# Pull Docker images
+pull_images() {
+    log "Pulling Docker images..."
+    docker compose pull
+    info "Docker images pulled successfully"
 }
 
-# Create Juno configuration
-create_juno_config() {
-    log "Creating Juno configuration..."
+# Test Docker setup
+test_setup() {
+    log "Testing Docker setup..."
     
-    cat > config/juno.yaml << EOF
-network: "mainnet"
-eth-node: "ws://nethermind:8546"
-db-path: "/var/lib/juno"
-http: true
-http-port: 6060
-http-host: "0.0.0.0"
-log-level: "INFO"
-colour: true
-pending-poll-interval: "1s"
-rpc-max-block-scan: 100000
-EOF
+    # Test if containers can be created
+    docker compose config > /dev/null
     
-    info "Juno configuration created"
-}
-
-# Create Prometheus configuration
-create_prometheus_config() {
-    log "Creating Prometheus configuration..."
-    
-    cat > config/prometheus.yml << EOF
-global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
-
-rule_files:
-  # - "first_rules.yml"
-  # - "second_rules.yml"
-
-scrape_configs:
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['localhost:9090']
-
-  - job_name: 'nethermind'
-    static_configs:
-      - targets: ['nethermind:8545']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
-
-  - job_name: 'lighthouse'
-    static_configs:
-      - targets: ['lighthouse:5052']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
-
-  - job_name: 'juno'
-    static_configs:
-      - targets: ['juno:6060']
-    metrics_path: '/metrics'
-    scrape_interval: 30s
-EOF
-    
-    info "Prometheus configuration created"
-}
-
-# Create Grafana datasource
-create_grafana_datasource() {
-    log "Creating Grafana datasource configuration..."
-    
-    cat > config/grafana/provisioning/datasources/prometheus.yml << EOF
-apiVersion: 1
-
-datasources:
-  - name: Prometheus
-    type: prometheus
-    access: proxy
-    url: http://prometheus:9090
-    isDefault: true
-    editable: true
-EOF
-    
-    info "Grafana datasource configuration created"
-}
-
-# Create systemd service for production deployment
-create_systemd_service() {
-    log "Creating systemd service template for production deployment..."
-    
-    cat > starknet-validator.service << EOF
-[Unit]
-Description=Starknet Validator Stack
-Requires=docker.service
-After=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/opt/starknet-validator
-ExecStart=/usr/local/bin/docker-compose up -d
-ExecStop=/usr/local/bin/docker-compose down
-TimeoutStartSec=0
-
-[Install]
-WantedBy=multi-user.target
-EOF
-    
-    info "Systemd service template created: starknet-validator.service"
-}
-
-# Create deployment script
-create_deployment_script() {
-    log "Creating deployment script for validator hardware..."
-    
-    cat > deploy-to-validator.sh << 'EOF'
-#!/bin/bash
-
-# Deploy tested Docker configuration to validator hardware
-# This script should be run on the validator hardware
-
-set -euo pipefail
-
-VALIDATOR_DIR="/opt/starknet-validator"
-SERVICE_NAME="starknet-validator"
-
-# Check if running as root
-if [[ $EUID -ne 0 ]]; then
-    echo "This script must be run as root on validator hardware"
-    exit 1
-fi
-
-# Create validator directory
-mkdir -p "$VALIDATOR_DIR"
-
-# Copy configuration files
-cp -r config data docker-compose.yml "$VALIDATOR_DIR/"
-
-# Copy systemd service
-cp starknet-validator.service /etc/systemd/system/
-
-# Set proper ownership
-chown -R root:root "$VALIDATOR_DIR"
-chmod 755 "$VALIDATOR_DIR"
-
-# Enable and start service
-systemctl daemon-reload
-systemctl enable "$SERVICE_NAME"
-systemctl start "$SERVICE_NAME"
-
-echo "Starknet validator deployed successfully!"
-echo "Check status with: systemctl status $SERVICE_NAME"
-EOF
-    
-    chmod +x deploy-to-validator.sh
-    info "Deployment script created: deploy-to-validator.sh"
+    info "Docker setup test passed"
 }
 
 # Main setup function
@@ -266,24 +139,23 @@ main() {
     check_docker
     setup_directories
     generate_jwt_secret
-    create_nethermind_config
-    create_juno_config
-    create_prometheus_config
-    create_grafana_datasource
-    create_systemd_service
-    create_deployment_script
+    create_env_file
+    validate_config
+    pull_images
+    test_setup
     
     log "Setup completed successfully!"
     echo
     info "Next steps:"
-    echo "1. Start the stack: docker-compose up -d"
-    echo "2. Check logs: docker-compose logs -f"
-    echo "3. Monitor via Grafana: http://localhost:3000 (admin/admin)"
-    echo "4. Test APIs:"
+    echo "1. Edit .env file with your validator configuration"
+    echo "2. Start the stack: docker compose up -d"
+    echo "3. Check logs: docker compose logs -f"
+    echo "4. Monitor via Grafana: http://localhost:3001 (admin/admin)"
+    echo "5. Test APIs:"
     echo "   - Nethermind: curl http://localhost:8545"
     echo "   - Lighthouse: curl http://localhost:5052/eth/v1/node/health"
     echo "   - Juno: curl http://localhost:6060/health"
-    echo "5. Once tested, deploy to validator: ./deploy-to-validator.sh"
+    echo "6. Once tested, deploy to validator hardware"
 }
 
 main "$@"

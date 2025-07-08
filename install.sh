@@ -111,10 +111,10 @@ update_system() {
     fi
     
     # Install Docker Compose
-    if ! command -v docker-compose &> /dev/null; then
+    if ! command -v docker compose &> /dev/null; then
         log "Installing Docker Compose..."
-        curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-        chmod +x /usr/local/bin/docker-compose
+        curl -L "https://github.com/docker/compose/releases/latest/download/docker compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker compose
+        chmod +x /usr/local/bin/docker compose
     fi
 }
 
@@ -213,11 +213,11 @@ main() {
     
     log "Base installation completed successfully!"
     log "Next steps:"
-    info "1. Run './install-nethermind.sh' to install Nethermind execution client"
-    info "2. Run './install-lighthouse.sh' to install Lighthouse consensus client"  
-    info "3. Run './install-juno.sh' to install Juno Starknet client"
-    info "4. Run './setup-services.sh' to configure systemd services"
-    info "5. Configure your validator keys and addresses"
+    info "1. Copy this repository to your validator hardware"
+    info "2. Create .env file with your validator configuration"
+    info "3. Run 'docker compose up -d' to start the validator stack"
+    info "4. Use ./generate-validator-key.sh to create validator keys"
+    info "5. Use ./validator-init.sh to complete validator setup"
 }
 
 # Run main function

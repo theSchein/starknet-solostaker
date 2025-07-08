@@ -18,7 +18,7 @@ fi
 mkdir -p "$VALIDATOR_DIR"
 
 # Copy configuration files
-cp -r config data docker-compose.yml "$VALIDATOR_DIR/"
+cp -r config data docker compose.yml "$VALIDATOR_DIR/"
 
 # Copy systemd service
 cp starknet-validator.service /etc/systemd/system/

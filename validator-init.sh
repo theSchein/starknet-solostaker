@@ -32,9 +32,9 @@ info() {
 check_services() {
     log "Checking if validator services are running..."
     
-    if ! docker-compose ps | grep -q "Up"; then
+    if ! docker compose ps | grep -q "Up"; then
         error "Validator services are not running. Please start them first:"
-        echo "  docker-compose up -d"
+        echo "  docker compose up -d"
         exit 1
     fi
     
@@ -49,7 +49,7 @@ check_sync_status() {
     info "Checking Nethermind (Ethereum execution) sync..."
     if ! curl -s http://localhost:8545 -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' | grep -q "false"; then
         warn "Nethermind is still syncing. This may take several hours."
-        echo "  Monitor with: docker-compose logs -f nethermind"
+        echo "  Monitor with: docker compose logs -f nethermind"
     else
         info "Nethermind is fully synced"
     fi
@@ -58,7 +58,7 @@ check_sync_status() {
     info "Checking Lighthouse (Ethereum consensus) sync..."
     if ! curl -s http://localhost:5052/eth/v1/node/syncing 2>/dev/null | grep -q '"is_syncing":false'; then
         warn "Lighthouse is still syncing. This may take several hours."
-        echo "  Monitor with: docker-compose logs -f lighthouse"
+        echo "  Monitor with: docker compose logs -f lighthouse"
     else
         info "Lighthouse is fully synced"
     fi
@@ -69,7 +69,7 @@ check_sync_status() {
     if [[ -n "$juno_block" ]]; then
         info "Juno is syncing. Current block: $juno_block"
     else
-        warn "Unable to get Juno sync status. Check logs: docker-compose logs -f juno"
+        warn "Unable to get Juno sync status. Check logs: docker compose logs -f juno"
     fi
 }
 
@@ -221,7 +221,7 @@ show_next_steps() {
     echo
     echo "1. ${BLUE}Wait for full sync${NC}"
     echo "   - All clients must be fully synced before staking"
-    echo "   - Monitor: docker-compose logs -f"
+    echo "   - Monitor: docker compose logs -f"
     echo "   - Check sync status: curl http://localhost:8545 -X POST -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"eth_syncing\",\"params\":[],\"id\":1}'"
     echo
     echo "2. ${BLUE}Fund operational address${NC}"
@@ -234,10 +234,10 @@ show_next_steps() {
     echo "   - Execute from staking address wallet"
     echo
     echo "4. ${BLUE}Restart validator with new configuration${NC}"
-    echo "   - docker-compose restart juno"
+    echo "   - docker compose restart juno"
     echo
     echo "5. ${BLUE}Monitor validator operation${NC}"
-    echo "   - Watch logs: docker-compose logs -f juno"
+    echo "   - Watch logs: docker compose logs -f juno"
     echo "   - Check Starknet explorer for your validator"
     echo "   - Monitor rewards in rewards address"
     echo

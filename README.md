@@ -31,12 +31,22 @@ This repository contains a complete Docker-based setup for running a Starknet so
    ./setup-docker-env.sh
    ```
 
-3. **Start the Stack**
+3. **Configure Environment Variables**
+   ```bash
+   # Edit .env file created by setup script
+   nano .env
+   
+   # Set your validator details:
+   # VALIDATOR_NAME=your-validator-name
+   # OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS
+   ```
+
+4. **Start the Stack**
    ```bash
    docker compose up -d
    ```
 
-4. **Verify Services**
+5. **Verify Services**
    ```bash
    # Check container status
    docker compose ps
@@ -78,7 +88,7 @@ docker compose restart
 
 # Restart specific service
 docker compose restart nethermind
-```
+```changes
 
 ### Checking Status
 ```bash
@@ -113,9 +123,30 @@ docker compose logs juno --tail=20 | grep -E "Sync|Stored Block"
 docker compose ps
 ```
 
-## Updates
+## Maintenance and Updates
 
-### Updating Docker Images
+### Using the Maintenance Script
+```bash
+# Check validator status and health
+./maintenance.sh status
+
+# Update from Git repository and restart services
+./maintenance.sh update
+
+# Create backup of validator data
+./maintenance.sh backup
+
+# Show recent logs from all services
+./maintenance.sh logs
+
+# Restart all services
+./maintenance.sh restart
+
+# Emergency reset (WARNING: deletes all data)
+./maintenance.sh reset
+```
+
+### Manual Updates
 ```bash
 # Pull latest images
 docker compose pull
@@ -124,19 +155,19 @@ docker compose pull
 docker compose up -d --force-recreate
 ```
 
-### Updating Configuration
-```bash
-# Stop services
-docker compose down
+### Snapshot Feature
+The setup includes automatic snapshot download for Juno to avoid weeks of initial sync:
+- **Snapshot Source**: Official Nethermind snapshots (~172GB)
+- **Automatic**: Downloads on first startup if no existing data
+- **Progress**: Monitor with `docker compose logs -f juno-snapshot`
+- **Skip**: Snapshot is skipped if `.snapshot_downloaded` marker exists
 
-# Edit configuration files in config/ directory
-# Restart services
-docker compose up -d
-```
-
-### Backup Before Updates
+### Backup Strategy
 ```bash
-# Create backup of data
+# Create backup of data (maintenance script method)
+./maintenance.sh backup
+
+# Manual backup
 sudo cp -r data data_backup_$(date +%Y%m%d_%H%M%S)
 
 # Or use Docker volumes
@@ -187,21 +218,36 @@ sudo journalctl -u starknet-validator -f
 # Ensure staking address has 20,000+ STRK tokens
 ```
 
-### Step 2: Start and Sync Clients
+### Step 2: Configure Environment
 ```bash
-# Start the validator stack
+# Copy .env.example to .env and edit with your details
+cp .env.example .env
+nano .env
+
+# Set your validator name and operational address:
+# VALIDATOR_NAME=your-validator-name
+# OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS
+```
+
+### Step 3: Start and Sync Clients
+```bash
+# Start the validator stack (includes automatic snapshot download)
 docker compose up -d
 
-# Monitor sync progress
+# Monitor snapshot download progress (first time only)
+docker compose logs -f juno-snapshot
+
+# Monitor sync progress after snapshot
 docker compose logs -f nethermind    # Ethereum execution sync
 docker compose logs -f lighthouse   # Ethereum consensus sync  
 docker compose logs -f juno         # Starknet sync
 
-# Wait for full sync (can take hours to days)
+# The Juno client will automatically download a snapshot (~172GB) 
+# on first run to avoid weeks of block-by-block sync
 # Monitor sync status via Grafana dashboard at http://localhost:3001
 ```
 
-### Step 3: Generate Validator Keys0x..
+### Step 4: Generate Validator Keys
 ```bash
 # Generate a new operational wallet for validator attestations
 # This will be your hot wallet - keep it secure but accessible to Juno
@@ -216,7 +262,7 @@ chmod 600 config/validator.key
 # Uncomment and set: operational-address: "0xYOUR_OPERATIONAL_ADDRESS"
 ```
 
-### Step 4: Stake STRK Tokens
+### Step 5: Stake STRK Tokens
 ```bash
 # Stake 20,000 STRK tokens to become a validator
 # This must be done via Starknet staking interface or wallet
@@ -240,19 +286,19 @@ chmod 600 config/validator.key
 # Check your validator status: https://voyager.online/staking
 ```
 
-### Step 5: Configure Validator
+### Step 6: Configure Validator
 ```bash
 # After staking is confirmed, update juno.yaml:
 # 1. Uncomment operational-address line
 # 2. Set your operational address from Step 3
 # 3. Ensure validator.key file exists in config/
 
-# Update docker-compose.yml to mount validator key
+# Update docker compose.yml to mount validator key
 # Add to juno volumes section:
 # - ./config/validator.key:/var/lib/juno/validator.key:ro
 ```
 
-### Step 6: Start Validation
+### Step 7: Start Validation
 ```bash
 # Restart services with validator configuration
 docker compose down
@@ -309,7 +355,7 @@ sudo ufw allow from $YOUR_IP_ADDRESS to any port 22
 
 ### Production Hardening
 ```bash
-# 1. Bind APIs to localhost only (already configured in docker-compose.yml)
+# 1. Bind APIs to localhost only (already configured in docker compose.yml)
 # 2. Use reverse proxy with authentication for monitoring
 # 3. Implement log rotation
 # 4. Set up automated security updates
@@ -342,7 +388,7 @@ sudo ufw allow from $YOUR_IP_ADDRESS to any port 22
 # Regularly scan images for vulnerabilities
 
 # Check for updates
-docker-compose pull
+docker compose pull
 docker system prune -f
 ```
 
@@ -363,11 +409,11 @@ find /backup -name "validator_backup_*.tar.gz" -mtime +7 -delete
 ### Common Issues
 ```bash
 # Container won't start
-docker-compose logs [service-name]
+docker compose logs [service-name]
 
 # Port conflicts
 netstat -tlnp | grep [port]
-# Update docker-compose.yml ports
+# Update docker compose.yml ports
 
 # Sync issues
 # Check network connectivity
@@ -382,17 +428,17 @@ netstat -tlnp | grep [port]
 ### Emergency Procedures
 ```bash
 # Quick restart
-docker-compose restart
+docker compose restart
 
 # Full reset (will lose sync data)
-docker-compose down
+docker compose down
 sudo rm -rf data/*
-docker-compose up -d
+docker compose up -d
 
 # Restore from backup
-docker-compose down
+docker compose down
 sudo tar xzf /backup/validator_backup_[timestamp].tar.gz -C /
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Contributing
@@ -423,30 +469,40 @@ This project welcomes community contributions! Here's how to help:
 - **Lighthouse Book**: https://lighthouse-book.sigmaprime.io/
 - **Juno Documentation**: https://juno.nethermind.io/
 - **Docker Documentation**: https://docs.docker.com/
-- **Starknet Community**: https://discord.gg/starknet
 
 ## Configuration Files
 
 ### Important Files
-- `docker-compose.yml`: Service definitions
+- `docker-compose.yml`: Service definitions with snapshot support
+- `.env.example`: Environment configuration template
 - `config/jwt.hex`: JWT secret for client authentication
 - `config/juno.yaml`: Juno Starknet client configuration
 - `data/`: Blockchain data storage
 - `starknet-validator.service`: Systemd service for production
+- `maintenance.sh`: Automated maintenance and update utilities
 
 ### Directory Structure
 ```
-starknet_staking/
-├── docker-compose.yml
-├── setup-docker-env.sh
-├── deploy-to-validator.sh
+starknet_solostaker/
+├── docker-compose.yml                # Main service definitions with snapshot support
+├── .env.example                      # Environment configuration template
+├── setup-docker-env.sh              # Development environment setup
+├── deploy-to-validator.sh            # Production deployment script
+├── maintenance.sh                    # Maintenance and update utilities
+├── generate-validator-key.sh         # Validator key generation helper
+├── validator-init.sh                 # Validator initialization guide
+├── install.sh                        # System installation script
+├── starknet-validator.service        # Systemd service file
 ├── config/
-│   ├── jwt.hex
-│   ├── juno.yaml
-│   └── prometheus.yml
+│   ├── jwt.hex                       # JWT secret for client authentication
+│   ├── juno.yaml                     # Juno Starknet client configuration
+│   ├── prometheus.yml               # Prometheus monitoring configuration
+│   └── grafana/                     # Grafana dashboards and datasources
 ├── data/
-│   ├── nethermind/
-│   ├── lighthouse/
-│   └── juno/
-└── README.md
+│   ├── nethermind/                  # Ethereum execution client data
+│   ├── lighthouse/                  # Ethereum consensus client data
+│   ├── juno/                        # Starknet client data (with snapshot support)
+│   ├── prometheus/                  # Metrics storage
+│   └── grafana/                     # Dashboard configuration
+└── README.md                        # This file
 ```
