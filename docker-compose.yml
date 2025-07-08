@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   nethermind:
@@ -35,6 +34,7 @@ services:
     image: sigp/lighthouse:latest
     container_name: starknet-lighthouse
     restart: unless-stopped
+    init: true
     ports:
       - "9000:9000"     # P2P
       - "5052:5052"     # HTTP API
@@ -73,10 +73,31 @@ services:
     command: >
       sh -c "
       if [ ! -f /var/lib/juno/.snapshot_downloaded ]; then
-        echo 'Downloading Juno snapshot... This may take 30-60 minutes';
-        wget -O /tmp/juno_mainnet.tar \"$${SNAPSHOT_URL}\" &&
+        echo 'Downloading Juno snapshot with resilient settings...';
+        echo 'This may take 1-3 hours depending on connection speed';
+        
+        # Retry download up to 5 times with increasing delays
+        for i in 1 2 3 4 5; do
+          echo \"Attempt $$i of 5\";
+          if wget --timeout=300 --read-timeout=300 --tries=3 --continue --progress=bar:force \
+                  -O /tmp/juno_mainnet.tar \"$${SNAPSHOT_URL}\"; then
+            echo 'Download completed successfully';
+            break;
+          else
+            echo \"Download failed on attempt $$i\";
+            if [ $$i -eq 5 ]; then
+              echo 'All download attempts failed';
+              exit 1;
+            fi;
+            sleep_time=$$((i * 30));
+            echo \"Retrying in $$sleep_time seconds...\";
+            sleep $$sleep_time;
+          fi;
+        done &&
+        
         echo 'Extracting snapshot...' &&
         tar -xf /tmp/juno_mainnet.tar -C /var/lib/juno &&
+        rm -f /tmp/juno_mainnet.tar &&
         touch /var/lib/juno/.snapshot_downloaded &&
         echo 'Snapshot downloaded and extracted successfully!';
       else
