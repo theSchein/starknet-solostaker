@@ -73,15 +73,10 @@ services:
     command: >
       sh -c "
       if [ ! -f /var/lib/juno/.snapshot_downloaded ]; then
-        echo 'Downloading Juno snapshot... This may take 1-3 hours';
-        
-        # Use curl with retry and resume capabilities
-        curl -L -C - --max-time 7200 --retry 5 --retry-delay 30 \
-             -o /tmp/juno_mainnet.tar \"$${SNAPSHOT_URL}\" &&
-        
+        echo 'Downloading Juno snapshot... This may take 30-60 minutes';
+        wget -O /tmp/juno_mainnet.tar \"$${SNAPSHOT_URL}\" &&
         echo 'Extracting snapshot...' &&
         tar -xf /tmp/juno_mainnet.tar -C /var/lib/juno &&
-        rm -f /tmp/juno_mainnet.tar &&
         touch /var/lib/juno/.snapshot_downloaded &&
         echo 'Snapshot downloaded and extracted successfully!';
       else
