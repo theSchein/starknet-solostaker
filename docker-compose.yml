@@ -63,6 +63,29 @@ services:
     networks:
       - starknet-network
 
+  juno-snapshot:
+    image: curlimages/curl:latest
+    container_name: starknet-juno-snapshot
+    volumes:
+      - ./data/juno:/var/lib/juno
+    environment:
+      - SNAPSHOT_URL=https://juno-snapshots.nethermind.io/files/mainnet/latest
+    command: >
+      sh -c "
+      if [ ! -f /var/lib/juno/.snapshot_downloaded ]; then
+        echo 'Downloading Juno snapshot... This may take 30-60 minutes';
+        wget -O /tmp/juno_mainnet.tar \"$${SNAPSHOT_URL}\" &&
+        echo 'Extracting snapshot...' &&
+        tar -xf /tmp/juno_mainnet.tar -C /var/lib/juno &&
+        touch /var/lib/juno/.snapshot_downloaded &&
+        echo 'Snapshot downloaded and extracted successfully!';
+      else
+        echo 'Snapshot already exists, skipping download';
+      fi
+      "
+    networks:
+      - starknet-network
+
   juno:
     image: nethermind/juno:latest
     container_name: starknet-juno
@@ -85,6 +108,7 @@ services:
       --log-level INFO
     depends_on:
       - lighthouse
+      - juno-snapshot
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6060/health"]
       interval: 30s

@@ -14,8 +14,8 @@ sync-blocks-step: 10000
 max-vm-queue: 100
 p2p-peers: 50
 p2p-peers-outbound: 20
-p2p-feeder-url: "https://alpha-mainnet.starknet.io/feeder_gateway"
-db-cache-size: 1024
+db-cache-size: 4096
+db-max-handles: 1024
 
 # Validator Configuration
 validator: true
