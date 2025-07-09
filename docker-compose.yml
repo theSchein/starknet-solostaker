@@ -89,14 +89,34 @@ services:
       sh -c "
       if [ ! -f /var/lib/juno/.snapshot_downloaded ] || [ ! -f /var/lib/juno/CURRENT ]; then
         echo 'Downloading/resuming Juno snapshot... This may take 30-60 minutes';
-        curl -C - -o /var/lib/juno/juno_mainnet.tar \"$${SNAPSHOT_URL}\" &&
-        echo 'Extracting snapshot...' &&
-        rm -rf /var/lib/juno/*.sst /var/lib/juno/CURRENT /var/lib/juno/LOCK /var/lib/juno/LOG* /var/lib/juno/MANIFEST* /var/lib/juno/OPTIONS* &&
-        mkdir -p /var/lib/juno &&
-        tar -xf /var/lib/juno/juno_mainnet.tar -C /var/lib/juno &&
-        rm -f /var/lib/juno/juno_mainnet.tar &&
-        touch /var/lib/juno/.snapshot_downloaded &&
-        echo 'Snapshot downloaded and extracted successfully!';
+        if curl -C - -o /var/lib/juno/juno_mainnet.tar \"$${SNAPSHOT_URL}\"; then
+          echo 'Download completed, verifying tar file...';
+          if tar -tf /var/lib/juno/juno_mainnet.tar >/dev/null 2>&1; then
+            echo 'Tar file verified, extracting snapshot...';
+            rm -rf /var/lib/juno/*.sst /var/lib/juno/CURRENT /var/lib/juno/LOCK /var/lib/juno/LOG* /var/lib/juno/MANIFEST* /var/lib/juno/OPTIONS*;
+            mkdir -p /var/lib/juno;
+            if tar -xf /var/lib/juno/juno_mainnet.tar -C /var/lib/juno; then
+              echo 'Extraction successful, verifying database files...';
+              if [ -f /var/lib/juno/CURRENT ] && [ \"\$(ls /var/lib/juno/*.sst 2>/dev/null | wc -l)\" -gt 100 ]; then
+                rm -f /var/lib/juno/juno_mainnet.tar;
+                touch /var/lib/juno/.snapshot_downloaded;
+                echo 'Snapshot downloaded and extracted successfully!';
+              else
+                echo 'ERROR: Extraction incomplete - missing database files';
+                exit 1;
+              fi;
+            else
+              echo 'ERROR: Tar extraction failed';
+              exit 1;
+            fi;
+          else
+            echo 'ERROR: Downloaded tar file is corrupted';
+            exit 1;
+          fi;
+        else
+          echo 'ERROR: Download failed';
+          exit 1;
+        fi;
       else
         echo 'Snapshot already exists, skipping download';
       fi
