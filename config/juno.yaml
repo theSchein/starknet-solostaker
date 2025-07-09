@@ -6,16 +6,13 @@ http-port: 6060
 http-host: "0.0.0.0"
 log-level: "INFO"
 colour: true
-pending-poll-interval: "1s"
+pending-poll-interval: "5s"
 rpc-max-block-scan: 100000
 
-# Sync optimization
-sync-blocks-step: 10000
-max-vm-queue: 100
-p2p-peers: 50
-p2p-peers-outbound: 20
-db-cache-size: 4096
-db-max-handles: 1024
+# Sync optimization - Updated to recommended production values
+rpc-call-max-steps: 4000000
+db-cache-size: 8192
+db-max-handles: 2048
 
 # Validator Configuration
 validator: true
