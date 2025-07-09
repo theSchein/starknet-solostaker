@@ -85,17 +85,13 @@ services:
     command: >
       sh -c "
       if [ ! -f /var/lib/juno/.snapshot_downloaded ] || [ ! -f /var/lib/juno/CURRENT ]; then
-        if [ -f /tmp/juno_mainnet.tar ]; then
-          echo 'Using existing snapshot file...';
-        else
-          echo 'Downloading Juno snapshot... This may take 30-60 minutes';
-          wget -O /tmp/juno_mainnet.tar \"$${SNAPSHOT_URL}\" || exit 1;
-        fi &&
+        echo 'Downloading/resuming Juno snapshot... This may take 30-60 minutes';
+        curl -C - -o /var/lib/juno/juno_mainnet.tar \"$${SNAPSHOT_URL}\" &&
         echo 'Extracting snapshot...' &&
-        rm -rf /var/lib/juno/* &&
+        rm -rf /var/lib/juno/*.sst /var/lib/juno/CURRENT /var/lib/juno/LOCK /var/lib/juno/LOG* /var/lib/juno/MANIFEST* /var/lib/juno/OPTIONS* &&
         mkdir -p /var/lib/juno &&
-        tar -xf /tmp/juno_mainnet.tar -C /var/lib/juno &&
-        rm -f /tmp/juno_mainnet.tar &&
+        tar -xf /var/lib/juno/juno_mainnet.tar -C /var/lib/juno &&
+        rm -f /var/lib/juno/juno_mainnet.tar &&
         touch /var/lib/juno/.snapshot_downloaded &&
         echo 'Snapshot downloaded and extracted successfully!';
       else
