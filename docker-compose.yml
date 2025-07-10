@@ -22,6 +22,11 @@ services:
       --Sync.DownloadBodiesInFastSync true
       --Sync.DownloadReceiptsInFastSync true
       --Sync.TuneDbMode HeavyWrite
+      --Pruning.Mode=Hybrid
+      --Pruning.FullPruningTrigger=VolumeFreeSpace
+      --Pruning.FullPruningThresholdMb=102400
+      --Pruning.CacheMb=4096
+      --Init.StateDbKeyScheme=HalfPath
       --Network.MaxActivePeers 25
       --Network.EnableUPnP true
       --Network.MaxOutgoingConnectPerSec 10
@@ -66,6 +71,9 @@ services:
       --execution-jwt /opt/lighthouse/jwt.hex
       --checkpoint-sync-url https://mainnet.checkpoint.sigp.io
       --disable-deposit-contract-sync
+      --state-cache-headroom 8
+      --epochs-per-blob-prune 128
+      --blob-prune-margin-epochs 16
     depends_on:
       - nethermind
     healthcheck:
