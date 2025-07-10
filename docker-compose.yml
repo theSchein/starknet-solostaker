@@ -24,8 +24,9 @@ services:
       --Sync.TuneDbMode HeavyWrite
       --Pruning.Mode=Hybrid
       --Pruning.FullPruningTrigger=VolumeFreeSpace
-      --Pruning.FullPruningThresholdMb=102400
-      --Pruning.CacheMb=4096
+      --Pruning.FullPruningThresholdMb=204800
+      --Pruning.CacheMb=2048
+      --Db.StateDbWriteBufferSize=409600000
       --Init.StateDbKeyScheme=HalfPath
       --Network.MaxActivePeers 25
       --Network.EnableUPnP true
@@ -152,8 +153,8 @@ services:
       --http-port 6060
       --http-host 0.0.0.0
       --log-level INFO
-      --max-vms 6
-      --max-vm-queue 12
+      --max-vms 8
+      --max-vm-queue 16
       --pending-poll-interval 5s
     depends_on:
       - lighthouse
@@ -169,11 +170,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8G
-          cpus: '4'
+          memory: 12G
+          cpus: '6'
         reservations:
-          memory: 4G
-          cpus: '2'
+          memory: 6G
+          cpus: '3'
     tmpfs:
       - /tmp:size=2G,noatime
 
