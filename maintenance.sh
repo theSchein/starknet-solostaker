@@ -123,8 +123,12 @@ update_images() {
     fi
     
     # Create lightweight backup of sensitive files only (no data folder)
-    warn "Creating backup of sensitive files..."
-    create_config_backup "pre-update"
+    if [[ "${ENABLE_AUTO_BACKUP:-true}" == "true" ]]; then
+        warn "Creating backup of sensitive files..."
+        create_config_backup "pre-update"
+    else
+        info "Auto-backup disabled via ENABLE_AUTO_BACKUP=false"
+    fi
     
     # Pull latest changes from Git
     info "Pulling latest changes from repository..."
@@ -166,8 +170,12 @@ update_docker_only() {
     log "Updating Docker images only..."
     
     # Create backup before update
-    warn "Creating backup before update..."
-    create_backup "pre-update"
+    if [[ "${ENABLE_AUTO_BACKUP:-true}" == "true" ]]; then
+        warn "Creating backup before update..."
+        create_backup "pre-update"
+    else
+        info "Auto-backup disabled via ENABLE_AUTO_BACKUP=false"
+    fi
     
     # Pull latest images
     info "Pulling latest Docker images..."
