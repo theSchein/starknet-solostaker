@@ -39,6 +39,11 @@ This repository contains a complete Docker-based setup for running a Starknet so
    # Set your validator details:
    # VALIDATOR_NAME=your-validator-name
    # OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS
+   
+   # Optional: Set individual data directories for external storage
+   # NETHERMIND_DATA_DIR=/path/to/external/ssd    # Ethereum execution (~500GB)
+   # LIGHTHOUSE_DATA_DIR=/path/to/external/ssd    # Ethereum consensus (~100GB)
+   # JUNO_DATA_DIR=/path/to/external/ssd          # Starknet client (~200GB)
    ```
 
 4. **Start the Stack**
@@ -227,6 +232,11 @@ nano .env
 # Set your validator name and operational address:
 # VALIDATOR_NAME=your-validator-name
 # OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS
+
+# Optional: Set individual data directories for external storage
+# NETHERMIND_DATA_DIR=/path/to/external/ssd    # Ethereum execution (~500GB)
+# LIGHTHOUSE_DATA_DIR=/path/to/external/ssd    # Ethereum consensus (~100GB)
+# JUNO_DATA_DIR=/path/to/external/ssd          # Starknet client (~200GB)
 ```
 
 ### Step 3: Start and Sync Clients
@@ -480,6 +490,33 @@ This project welcomes community contributions! Here's how to help:
 - `data/`: Blockchain data storage
 - `starknet-validator.service`: Systemd service for production
 - `maintenance.sh`: Automated maintenance and update utilities
+
+### External Storage Configuration
+You can configure individual data directories for each service to optimize storage usage:
+
+```bash
+# Example: Put large blockchain data on SSD, keep smaller data local
+export NETHERMIND_DATA_DIR=/mnt/ssd/starknet    # ~500GB Ethereum execution
+export LIGHTHOUSE_DATA_DIR=/mnt/ssd/starknet    # ~100GB Ethereum consensus  
+export JUNO_DATA_DIR=/mnt/ssd/starknet          # ~200GB Starknet client
+export PROMETHEUS_DATA_DIR=./data               # ~1GB metrics (keep local)
+export GRAFANA_DATA_DIR=./data                  # ~100MB dashboards (keep local)
+docker compose up -d
+
+# Or add to .env file:
+echo "NETHERMIND_DATA_DIR=/mnt/ssd/starknet" >> .env
+echo "LIGHTHOUSE_DATA_DIR=/mnt/ssd/starknet" >> .env
+echo "JUNO_DATA_DIR=/mnt/ssd/starknet" >> .env
+```
+
+Individual data directory variables:
+- `NETHERMIND_DATA_DIR` - Ethereum execution client data (~500GB)
+- `LIGHTHOUSE_DATA_DIR` - Ethereum consensus client data (~100GB)
+- `JUNO_DATA_DIR` - Starknet client data (~200GB)
+- `PROMETHEUS_DATA_DIR` - Metrics storage (~1GB)
+- `GRAFANA_DATA_DIR` - Dashboard configuration (~100MB)
+
+If not set, each defaults to `./data/[service-name]/`
 
 ### Directory Structure
 ```

@@ -10,7 +10,7 @@ services:
       - "8551:8551"     # Engine API
       - "30303:30303"   # P2P
     volumes:
-      - ./data/nethermind:/nethermind/data
+      - ${NETHERMIND_DATA_DIR:-./data}/nethermind:/nethermind/data
       - ./config/jwt.hex:/nethermind/jwt.hex:ro
     command: >
       --config mainnet
@@ -59,7 +59,7 @@ services:
       - "9000:9000"     # P2P
       - "5052:5052"     # HTTP API
     volumes:
-      - ./data/lighthouse:/opt/lighthouse/data
+      - ${LIGHTHOUSE_DATA_DIR:-./data}/lighthouse:/opt/lighthouse/data
       - ./config/jwt.hex:/opt/lighthouse/jwt.hex:ro
     command: >
       lighthouse bn
@@ -91,7 +91,7 @@ services:
     container_name: starknet-juno-snapshot
     user: root
     volumes:
-      - ./data/juno:/var/lib/juno
+      - ${JUNO_DATA_DIR:-./data}/juno:/var/lib/juno
     environment:
       - SNAPSHOT_URL=https://juno-snapshots.nethermind.io/files/mainnet/latest
     command: >
@@ -140,7 +140,7 @@ services:
     ports:
       - "6060:6060"     # HTTP API
     volumes:
-      - ./data/juno:/var/lib/juno
+      - ${JUNO_DATA_DIR:-./data}/juno:/var/lib/juno
       - ./config/juno.yaml:/etc/juno/juno.yaml:ro
       - ./config/validator.key:/var/lib/juno/validator.key:ro
     environment:
@@ -186,7 +186,7 @@ services:
       - "9090:9090"
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./data/prometheus:/prometheus
+      - ${PROMETHEUS_DATA_DIR:-./data}/prometheus:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -204,7 +204,7 @@ services:
     ports:
       - "3001:3000"
     volumes:
-      - ./data/grafana:/var/lib/grafana
+      - ${GRAFANA_DATA_DIR:-./data}/grafana:/var/lib/grafana
       - ./config/grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
