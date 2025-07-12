@@ -222,16 +222,11 @@ services:
     ports:
       - "8081:8080"     # Metrics port
     volumes:
-      - ./config/validator.key:/app/validator.key:ro
+      - ./config/validator-config.json:/app/validator-config.json:ro
     environment:
       - VALIDATOR_NAME=${VALIDATOR_NAME:-starknet-validator}
-      - OPERATIONAL_ADDRESS=${OPERATIONAL_ADDRESS}
-      - VALIDATOR_PRIVATE_KEY_FILE=/app/validator.key
     command: >
-      --provider-http http://juno:6060/v0_8
-      --provider-ws ws://juno:6061/v0_8
-      --signer-op-address ${OPERATIONAL_ADDRESS}
-      --signer-priv-key ${VALIDATOR_PRIVATE_KEY}
+      --config /app/validator-config.json
       --metrics
       --metrics-host 0.0.0.0
       --metrics-port 8080

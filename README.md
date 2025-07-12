@@ -60,6 +60,7 @@ This repository contains a complete Docker-based setup for running a Starknet so
    docker compose logs -f nethermind | grep -i "sync\|block"
    docker compose logs -f lighthouse | grep -i "sync\|slot"
    docker compose logs -f juno | grep -i "sync\|block"
+   docker compose logs -f starknet-validator
    ```
 
 ## Service Management
@@ -73,6 +74,7 @@ docker compose up -d
 docker compose up -d nethermind
 docker compose up -d lighthouse
 docker compose up -d juno
+docker compose up -d starknet-validator
 ```
 
 ### Stopping Services
@@ -84,6 +86,7 @@ docker compose down
 docker compose stop nethermind
 docker compose stop lighthouse
 docker compose stop juno
+docker compose stop starknet-validator
 ```
 
 ### Restarting Services
@@ -111,11 +114,13 @@ docker compose logs --tail=50 juno       # Last 50 lines
 ### Web Interfaces
 - **Grafana Dashboard**: http://localhost:3001 (admin/admin)
 - **Prometheus Metrics**: http://localhost:9090
+- **Validator Metrics**: http://localhost:8081/metrics
 
 ### API Endpoints
 - **Nethermind JSON-RPC**: http://localhost:8545
 - **Lighthouse Beacon API**: http://localhost:5052
-- **Juno Starknet API**: http://localhost:6060
+- **Juno Starknet API**: http://localhost:6060 (HTTP)
+- **Juno WebSocket API**: http://localhost:6061 (WebSocket)
 
 ### Health Checks
 ```bash
@@ -123,6 +128,7 @@ docker compose logs --tail=50 juno       # Last 50 lines
 docker compose logs nethermind --tail=20 | grep -E "Sync|Block|ForkChoice"
 docker compose logs lighthouse --tail=20 | grep -E "Sync|Slot|Head"
 docker compose logs juno --tail=20 | grep -E "Sync|Stored Block"
+docker compose logs starknet-validator --tail=20 | grep -E "Connected|Subscribed|Balance"
 
 # Check container health
 docker compose ps
@@ -223,15 +229,23 @@ sudo journalctl -u starknet-validator -f
 # Ensure staking address has 20,000+ STRK tokens
 ```
 
-### Step 2: Configure Environment
+### Step 2: Configure Validator Keys
 ```bash
-# Copy .env.example to .env and edit with your details
+# Option A: Generate new validator keys (recommended for new validators)
+./generate-validator-key.sh
+# Choose option 1 to generate new keys with starknet CLI
+
+# Option B: Use existing keys
 cp .env.example .env
 nano .env
-
-# Set your validator name and operational address:
+# Edit .env file with your existing validator details:
 # VALIDATOR_NAME=your-validator-name
-# OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS
+# OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS  
+# VALIDATOR_PRIVATE_KEY=0xYOUR_VALIDATOR_PRIVATE_KEY
+
+# Then generate secure JSON config from .env:
+./generate-validator-key.sh
+# Choose option 2 to use existing keys from .env
 
 # Optional: Set individual data directories for external storage
 # NETHERMIND_DATA_DIR=/path/to/external/ssd    # Ethereum execution (~500GB)
@@ -257,19 +271,17 @@ docker compose logs -f juno         # Starknet sync
 # Monitor sync status via Grafana dashboard at http://localhost:3001
 ```
 
-### Step 4: Generate Validator Keys
+### Step 4: Verify Validator Configuration
 ```bash
-# Generate a new operational wallet for validator attestations
-# This will be your hot wallet - keep it secure but accessible to Juno
+# Verify the validator configuration was generated correctly
+ls -la config/validator-config.json
+# Should show: -rw------- (600 permissions, readable only by owner)
 
-# Export private key from Braavos/Argent wallet
+# Check that your addresses are correctly set in the config
+grep -E "operationalAddress|privateKey" config/validator-config.json
+# Should show your actual addresses from .env file
 
-# Save the private key securely
-echo "0xYOUR_PRIVATE_KEY" > config/validator.key
-chmod 600 config/validator.key
-
-# Update juno.yaml with your operational address
-# Uncomment and set: operational-address: "0xYOUR_OPERATIONAL_ADDRESS"
+# The validator will automatically load keys from this secure JSON config file
 ```
 
 ### Step 5: Stake STRK Tokens
@@ -296,31 +308,31 @@ chmod 600 config/validator.key
 # Check your validator status: https://voyager.online/staking
 ```
 
-### Step 6: Configure Validator
+### Step 6: Verify Validator Ready
 ```bash
-# After staking is confirmed, update juno.yaml:
-# 1. Uncomment operational-address line
-# 2. Set your operational address from Step 3
-# 3. Ensure validator.key file exists in config/
+# Check that all clients are synced to current head
+docker compose logs nethermind --tail 5 | grep -E "Received|Head|Block"
+docker compose logs lighthouse --tail 5 | grep -E "Synced|Head|Finalized"  
+docker compose logs juno --tail 5 | grep -E "Stored Block|Head|Sync"
 
-# Update docker compose.yml to mount validator key
-# Add to juno volumes section:
-# - ./config/validator.key:/var/lib/juno/validator.key:ro
+# Check validator service is running and connected
+docker compose logs starknet-validator --tail 10
+
+# Verify metrics endpoint is responding
+curl http://localhost:8081/metrics | head -5
 ```
 
 ### Step 7: Start Validation
 ```bash
-# Restart services with validator configuration
-docker compose down
-docker compose up -d
+# Once all clients are synced, the validator automatically starts attestations
+# Monitor validator logs for attestation activity
+docker compose logs -f starknet-validator
 
-# Monitor validator logs for attestations
-docker compose logs -f juno | grep -i "attest\|valid\|epoch"
-
-# Check validator status
-# - Voyager: https://voyager.online/staking
+# Check validator status and metrics
+# - Validator metrics: http://localhost:8081/metrics
+# - Grafana dashboard: http://localhost:3001
+# - Voyager staking: https://voyager.online/staking
 # - Monitor rewards in your rewards address
-# - Check validator performance metrics in Grafana
 ```
 
 ## Security Considerations
@@ -478,18 +490,27 @@ This project welcomes community contributions! Here's how to help:
 - **Nethermind Docs**: https://docs.nethermind.io/
 - **Lighthouse Book**: https://lighthouse-book.sigmaprime.io/
 - **Juno Documentation**: https://juno.nethermind.io/
+- **Nethermind Starknet Validator**: https://github.com/NethermindEth/starknet-staking-v2
 - **Docker Documentation**: https://docs.docker.com/
 
 ## Configuration Files
 
 ### Important Files
-- `docker-compose.yml`: Service definitions with snapshot support
-- `.env.example`: Environment configuration template
+- `docker-compose.yml`: Service definitions including Nethermind Starknet Validator
+- `.env.example`: Environment configuration template with validator settings
 - `config/jwt.hex`: JWT secret for client authentication
-- `config/juno.yaml`: Juno Starknet client configuration
-- `data/`: Blockchain data storage
+- `config/juno.yaml`: Juno Starknet client configuration (HTTP + WebSocket)
+- `data/`: Blockchain data storage (configurable paths)
 - `starknet-validator.service`: Systemd service for production
 - `maintenance.sh`: Automated maintenance and update utilities
+
+### Validator Architecture
+This setup uses the **Nethermind Starknet Staking v2** validator service:
+- **Juno**: Starknet full node (HTTP + WebSocket RPC)
+- **Nethermind**: Ethereum execution client  
+- **Lighthouse**: Ethereum consensus client
+- **Starknet Validator**: Dedicated attestation service
+- **Monitoring**: Prometheus + Grafana dashboards
 
 ### External Storage Configuration
 You can configure individual data directories for each service to optimize storage usage:
