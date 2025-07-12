@@ -229,23 +229,20 @@ sudo journalctl -u starknet-validator -f
 # Ensure staking address has 20,000+ STRK tokens
 ```
 
-### Step 2: Configure Validator Keys
+### Step 2: Configure Operational Address
 ```bash
-# Option A: Generate new validator keys (recommended for new validators)
-./generate-validator-key.sh
-# Choose option 1 to generate new keys with starknet CLI
-
-# Option B: Use existing keys
+# Copy .env.example to .env and edit with your operational address details
 cp .env.example .env
 nano .env
-# Edit .env file with your existing validator details:
+
+# Edit .env file with your operational address (for validator software only):
 # VALIDATOR_NAME=your-validator-name
 # OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS  
-# VALIDATOR_PRIVATE_KEY=0xYOUR_VALIDATOR_PRIVATE_KEY
+# VALIDATOR_PRIVATE_KEY=0xYOUR_OPERATIONAL_PRIVATE_KEY
 
-# Then generate secure JSON config from .env:
-./generate-validator-key.sh
-# Choose option 2 to use existing keys from .env
+# Note: This is only for the operational address that signs attestations
+# Your staking address (with 20k STRK) and rewards address will be configured 
+# separately via hardware wallet when you stake
 
 # Optional: Set individual data directories for external storage
 # NETHERMIND_DATA_DIR=/path/to/external/ssd    # Ethereum execution (~500GB)
