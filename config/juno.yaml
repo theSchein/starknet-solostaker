@@ -4,6 +4,9 @@ db-path: "/var/lib/juno"
 http: true
 http-port: 6060
 http-host: "0.0.0.0"
+ws: true
+ws-port: 6061
+ws-host: "0.0.0.0"
 log-level: "INFO"
 colour: true
 pending-poll-interval: "5s"
@@ -14,11 +17,6 @@ rpc-call-max-steps: 4000000
 db-cache-size: 8192
 db-max-handles: 2048
 
-# Validator Configuration
-validator: true
-validator-name: "${VALIDATOR_NAME:-starknet-validator}" # Configurable validator name
-operational-address: "${OPERATIONAL_ADDRESS}" # Configurable operational wallet address
-validator-private-key-file: "/var/lib/juno/validator.key" # Path to encrypted private key
-attestation-enabled: true
-attestation-interval: "12s"  # Block time for attestations
+# Note: Validator functionality is handled by separate Nethermind Starknet Staking v2 service
+# Juno v0.15.0-rc.3 does not have built-in validator support
 disable-l1-verification: true

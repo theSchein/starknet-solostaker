@@ -139,6 +139,7 @@ services:
     restart: unless-stopped
     ports:
       - "6060:6060"     # HTTP API
+      - "6061:6061"     # WebSocket API
     volumes:
       - ${JUNO_DATA_DIR:-./data}/juno:/var/lib/juno
       - ./config/juno.yaml:/etc/juno/juno.yaml:ro
@@ -211,6 +212,38 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     depends_on:
       - prometheus
+    networks:
+      - starknet-network
+
+  starknet-validator:
+    image: nethermind/starknet-staking-v2:latest
+    container_name: starknet-validator
+    restart: unless-stopped
+    ports:
+      - "8081:8080"     # Metrics port
+    volumes:
+      - ./config/validator.key:/app/validator.key:ro
+    environment:
+      - VALIDATOR_NAME=${VALIDATOR_NAME:-starknet-validator}
+      - OPERATIONAL_ADDRESS=${OPERATIONAL_ADDRESS}
+      - VALIDATOR_PRIVATE_KEY_FILE=/app/validator.key
+    command: >
+      --provider-http http://juno:6060/v0_8
+      --provider-ws ws://juno:6061/v0_8
+      --signer-op-address ${OPERATIONAL_ADDRESS}
+      --signer-priv-key ${VALIDATOR_PRIVATE_KEY}
+      --metrics
+      --metrics-host 0.0.0.0
+      --metrics-port 8080
+      --log-level info
+    depends_on:
+      - juno
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/metrics"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     networks:
       - starknet-network
 
