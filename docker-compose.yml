@@ -233,7 +233,7 @@ services:
       --metrics
       --metrics-host 0.0.0.0
       --metrics-port 8080
-      --log-level info
+      --log-level debug
     depends_on:
       - juno
     healthcheck:

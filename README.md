@@ -2,7 +2,12 @@
 
 This repository contains a complete Docker-based setup for running a Starknet solo staking validator with Nethermind (execution), Lighthouse (consensus), and Juno (Starknet) clients.
 
-## ⚠️ **DISCLAIMER**
+It was developed to help decentralize Starknet by giving a solostaker all the software needed to run a validator on their on hardware in one place.
+
+I use this repo to run my own Starknet validator here: https://voyager.online/staking?validator=0x03c192719026b8f2208e1b8891a9db5cde8b90229a33c02f69f3c0eb07771170
+If you found this repo useful please consider delegating some of your stake to support solostakers.
+
+## **DISCLAIMER**
 
 **This software is provided "as is" without warranty of any kind. Use at your own risk.**
 
@@ -10,12 +15,19 @@ This repository contains a complete Docker-based setup for running a Starknet so
 - **Not Financial Advice**: This is not investment or financial advice
 - **Risk of Loss**: Staking cryptocurrencies involves risk of partial or total loss
 - **Security Responsibility**: Users are responsible for securing their own systems
-- **No Guarantees**: No guarantee of uptime, rewards, or functionality
+- **No Guarantees**: No guarantee of uptime, rewards, or functionality of this repo
 - **Verify Everything**: Always verify contract addresses and transactions before execution
 
 **By using this software, you acknowledge these risks and assume full responsibility.**
 
+## Hardware
+
+This guide assumes that the operator is running their own hardware to setup the validator. The requirements are here:
+
+
 ## Quick Start
+
+These steps and commands will help you set up and command the client software. 
 
 ### Initial Setup (Development/Testing)
 
@@ -39,11 +51,12 @@ This repository contains a complete Docker-based setup for running a Starknet so
    # Set your validator details:
    # VALIDATOR_NAME=your-validator-name
    # OPERATIONAL_ADDRESS=0xYOUR_OPERATIONAL_ADDRESS
+   # VALIDATOR_PRIVATE_KEY=0xYOU_OPERATIONAL_PRIVATE_KEY
    
    # Optional: Set individual data directories for external storage
-   # NETHERMIND_DATA_DIR=/path/to/external/ssd    # Ethereum execution (~500GB)
-   # LIGHTHOUSE_DATA_DIR=/path/to/external/ssd    # Ethereum consensus (~100GB)
-   # JUNO_DATA_DIR=/path/to/external/ssd          # Starknet client (~200GB)
+   # NETHERMIND_DATA_DIR=/path/to/external/ssd    # Ethereum execution 
+   # LIGHTHOUSE_DATA_DIR=/path/to/external/ssd    # Ethereum consensus 
+   # JUNO_DATA_DIR=/path/to/external/ssd          # Starknet client
    ```
 
 4. **Start the Stack**
@@ -122,18 +135,6 @@ docker compose logs --tail=50 juno       # Last 50 lines
 - **Juno Starknet API**: http://localhost:6060 (HTTP)
 - **Juno WebSocket API**: http://localhost:6061 (WebSocket)
 
-### Health Checks
-```bash
-# Monitor sync status via logs (APIs require JWT authentication)
-docker compose logs nethermind --tail=20 | grep -E "Sync|Block|ForkChoice"
-docker compose logs lighthouse --tail=20 | grep -E "Sync|Slot|Head"
-docker compose logs juno --tail=20 | grep -E "Sync|Stored Block"
-docker compose logs starknet-validator --tail=20 | grep -E "Connected|Subscribed|Balance"
-
-# Check container health
-docker compose ps
-```
-
 ## Maintenance and Updates
 
 ### Using the Maintenance Script
@@ -168,7 +169,7 @@ docker compose up -d --force-recreate
 
 ### Snapshot Feature
 The setup includes automatic snapshot download for Juno to avoid weeks of initial sync:
-- **Snapshot Source**: Official Nethermind snapshots (~172GB)
+- **Snapshot Source**: Official Nethermind snapshots (~400GB)
 - **Automatic**: Downloads on first startup if no existing data
 - **Progress**: Monitor with `docker compose logs -f juno-snapshot`
 - **Skip**: Snapshot is skipped if `.snapshot_downloaded` marker exists
@@ -189,7 +190,7 @@ docker run --rm -v starknet_staking_nethermind-data:/data -v $(pwd):/backup alpi
 
 ### Testing Environment → Production
 ```bash
-# 1. Test locally first (this system)
+# 1. Test locally first
 ./setup-docker-env.sh
 docker compose up -d
 
@@ -214,6 +215,7 @@ sudo journalctl -u starknet-validator -f
 ```
 
 ## Starknet Validator Setup
+After getting all of the clients synced, which could take up to a week, you will be ready to stand up a validator. 
 
 ### Prerequisites
 - **Minimum 20,000 STRK tokens** for mainnet staking
@@ -226,6 +228,7 @@ sudo journalctl -u starknet-validator -f
 ```bash
 # Create/import wallets using Braavos or Argent
 # Fund operational address with ETH/STRK for transaction fees
+# Make sure the operational address has been deployed
 # Ensure staking address has 20,000+ STRK tokens
 ```
 
@@ -233,7 +236,7 @@ sudo journalctl -u starknet-validator -f
 ```bash
 # Copy .env.example to .env and edit with your operational address details
 cp .env.example .env
-nano .env
+vim .env
 
 # Edit .env file with your operational address (for validator software only):
 # VALIDATOR_NAME=your-validator-name
@@ -263,7 +266,7 @@ docker compose logs -f nethermind    # Ethereum execution sync
 docker compose logs -f lighthouse   # Ethereum consensus sync  
 docker compose logs -f juno         # Starknet sync
 
-# The Juno client will automatically download a snapshot (~172GB) 
+# The Juno client will automatically download a snapshot (~400GB) 
 # on first run to avoid weeks of block-by-block sync
 # Monitor sync status via Grafana dashboard at http://localhost:3001
 ```
@@ -334,7 +337,7 @@ docker compose logs -f starknet-validator
 
 ## Security Considerations
 
-### ⚠️ **CRITICAL SECURITY WARNINGS**
+### **CRITICAL SECURITY WARNINGS**
 
 1. **Never share private keys or seed phrases**
 2. **Always verify contract addresses before executing transactions**
@@ -342,15 +345,7 @@ docker compose logs -f starknet-validator
 4. **Run validator on dedicated, hardened hardware**
 5. **Regularly update all software components**
 
-### File Permissions
-```bash
-# Ensure sensitive files are properly secured
-chmod 600 config/jwt.hex
-chmod 600 config/validator-keys/*  # If using keystore files
-chmod 700 ~/.starknet/              # Starknet CLI keystore
-```
 
-### Network Security (Production)
 ```bash
 # Firewall rules for validator hardware
 sudo ufw enable
@@ -370,57 +365,6 @@ sudo ufw deny 9090/tcp      # Prometheus
 
 # Allow SSH only from trusted IPs (replace with your IP)
 sudo ufw allow from $YOUR_IP_ADDRESS to any port 22
-```
-
-### Production Hardening
-```bash
-# 1. Bind APIs to localhost only (already configured in docker compose.yml)
-# 2. Use reverse proxy with authentication for monitoring
-# 3. Implement log rotation
-# 4. Set up automated security updates
-# 5. Use dedicated user account with minimal privileges
-```
-
-### Private Key Management
-```bash
-# NEVER store private keys in plain text
-# Use one of these secure methods:
-
-# Option 1: Hardware wallet (recommended)
-# - Keep operational key on hardware wallet
-# - Use hardware wallet for all transactions
-
-# Option 2: Encrypted keystore
-# - Use starknet CLI to create encrypted keystore
-# - Store keystore file with strong password
-
-# Option 3: Environment variables (less secure)
-# - Use only for development/testing
-# - Never commit to version control
-```
-
-### Docker Security
-```bash
-# Run containers as non-root user
-# Limit container capabilities
-# Use read-only filesystems where possible
-# Regularly scan images for vulnerabilities
-
-# Check for updates
-docker compose pull
-docker system prune -f
-```
-
-### Backup Strategy
-```bash
-# Regular backups of critical data
-0 2 * * * /usr/local/bin/backup-validator.sh  # Daily at 2 AM
-
-# backup-validator.sh content:
-#!/bin/bash
-DATE=$(date +%Y%m%d_%H%M%S)
-docker run --rm -v /opt/starknet-validator:/data -v /backup:/backup alpine tar czf /backup/validator_backup_$DATE.tar.gz /data
-find /backup -name "validator_backup_*.tar.gz" -mtime +7 -delete
 ```
 
 ## Troubleshooting
@@ -460,27 +404,6 @@ sudo tar xzf /backup/validator_backup_[timestamp].tar.gz -C /
 docker compose up -d
 ```
 
-## Contributing
-
-This project welcomes community contributions! Here's how to help:
-
-### Reporting Issues
-- **Security Issues**: Report privately via email (never public issues)
-- **Bug Reports**: Include logs, system info, and reproduction steps
-- **Feature Requests**: Describe use case and proposed solution
-
-### Contributing Code
-- Fork the repository and create feature branches
-- Test thoroughly on testnet before submitting
-- Follow existing code style and documentation standards
-- Add appropriate security warnings for new features
-
-### Community Guidelines
-- Be respectful and helpful to other users
-- Share knowledge and help troubleshoot issues
-- Verify information before sharing contract addresses
-- Never share private keys or sensitive information
-
 ## Support Resources
 
 - **Starknet Documentation**: https://docs.starknet.io/architecture/staking/
@@ -495,7 +418,6 @@ This project welcomes community contributions! Here's how to help:
 ### Important Files
 - `docker-compose.yml`: Service definitions including Nethermind Starknet Validator
 - `.env.example`: Environment configuration template with validator settings
-- `config/jwt.hex`: JWT secret for client authentication
 - `config/juno.yaml`: Juno Starknet client configuration (HTTP + WebSocket)
 - `data/`: Blockchain data storage (configurable paths)
 - `starknet-validator.service`: Systemd service for production
@@ -514,9 +436,9 @@ You can configure individual data directories for each service to optimize stora
 
 ```bash
 # Example: Put large blockchain data on SSD, keep smaller data local
-export NETHERMIND_DATA_DIR=/mnt/ssd/starknet    # ~500GB Ethereum execution
-export LIGHTHOUSE_DATA_DIR=/mnt/ssd/starknet    # ~100GB Ethereum consensus  
-export JUNO_DATA_DIR=/mnt/ssd/starknet          # ~200GB Starknet client
+export NETHERMIND_DATA_DIR=/mnt/ssd/starknet    # ~600GB Ethereum execution
+export LIGHTHOUSE_DATA_DIR=/mnt/ssd/starknet    # ~300GB Ethereum consensus  
+export JUNO_DATA_DIR=/mnt/ssd/starknet          # ~600GB Starknet client
 export PROMETHEUS_DATA_DIR=./data               # ~1GB metrics (keep local)
 export GRAFANA_DATA_DIR=./data                  # ~100MB dashboards (keep local)
 docker compose up -d
