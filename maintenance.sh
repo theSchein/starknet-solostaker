@@ -40,6 +40,8 @@ show_help() {
     echo "  backup      - Create backup of validator data"
     echo "  restore     - Restore from backup"
     echo "  logs        - Show recent logs from all services"
+    echo "  start       - Start all services"
+    echo "  stop        - Stop all services"
     echo "  restart     - Restart all services"
     echo "  reset       - Reset and resync (WARNING: deletes all data)"
     echo "  help        - Show this help message"
@@ -64,20 +66,23 @@ check_status() {
     # Sync status
     info "Sync Status:"
     
-    # Nethermind
-    echo -n "  Nethermind (Ethereum): "
-    if curl -s http://localhost:8545 -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_syncing","params":[],"id":1}' | grep -q "false"; then
-        echo -e "${GREEN}SYNCED${NC}"
-    else
-        echo -e "${YELLOW}SYNCING${NC}"
+    # Ethereum RPC Status (if configured)
+    if [[ -n "${ETHEREUM_RPC_PRIMARY:-}" ]]; then
+        echo -n "  Ethereum RPC (Primary): "
+        if curl -s "${ETHEREUM_RPC_PRIMARY}" -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' 2>/dev/null | grep -q "result"; then
+            echo -e "${GREEN}CONNECTED${NC}"
+        else
+            echo -e "${RED}DISCONNECTED${NC}"
+        fi
     fi
     
-    # Lighthouse
-    echo -n "  Lighthouse (Consensus): "
-    if curl -s http://localhost:5052/eth/v1/node/syncing 2>/dev/null | grep -q '"is_syncing":false'; then
-        echo -e "${GREEN}SYNCED${NC}"
-    else
-        echo -e "${YELLOW}SYNCING${NC}"
+    if [[ -n "${ETHEREUM_RPC_BACKUP:-}" ]]; then
+        echo -n "  Ethereum RPC (Backup): "
+        if curl -s "${ETHEREUM_RPC_BACKUP}" -X POST -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' 2>/dev/null | grep -q "result"; then
+            echo -e "${GREEN}CONNECTED${NC}"
+        else
+            echo -e "${RED}DISCONNECTED${NC}"
+        fi
     fi
     
     # Juno
@@ -379,6 +384,31 @@ show_logs() {
     fi
 }
 
+# Start services
+start_services() {
+    log "Starting all services..."
+    
+    # Load environment variables
+    if [[ -f .env ]]; then
+        export $(cat .env | grep -v '^#' | xargs)
+    fi
+    
+    docker compose up -d
+    
+    # Wait for services to start
+    sleep 10
+    
+    info "Service status after start:"
+    docker compose ps
+}
+
+# Stop services
+stop_services() {
+    log "Stopping all services..."
+    docker compose down
+    info "All services stopped"
+}
+
 # Restart services
 restart_services() {
     log "Restarting all services..."
@@ -415,8 +445,8 @@ reset_validator() {
     
     # Recreate directories
     info "Recreating directories..."
-    mkdir -p data/{nethermind,lighthouse,juno,prometheus,grafana}
-    chmod 755 data/{nethermind,lighthouse,juno,prometheus}
+    mkdir -p data/{juno,prometheus,grafana}
+    chmod 755 data/{juno,prometheus}
     chmod 777 data/grafana
     
     # Start services
@@ -445,6 +475,12 @@ main() {
             ;;
         "logs")
             show_logs "${2:-}" "${3:-50}"
+            ;;
+        "start")
+            start_services
+            ;;
+        "stop")
+            stop_services
             ;;
         "restart")
             restart_services
