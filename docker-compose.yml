@@ -232,8 +232,8 @@ services:
       - OPERATIONAL_ADDRESS=${OPERATIONAL_ADDRESS}
       - VALIDATOR_PRIVATE_KEY=${VALIDATOR_PRIVATE_KEY}
     command: >
-      --provider-http http://juno:6060/v0_8
-      --provider-ws ws://juno:6061/v0_8
+      --provider-http http://juno:6060/v0_9
+      --provider-ws ws://juno:6061/v0_9
       --signer-op-address ${OPERATIONAL_ADDRESS}
       --signer-priv-key ${VALIDATOR_PRIVATE_KEY}
       --metrics
