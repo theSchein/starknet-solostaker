@@ -163,6 +163,9 @@ services:
       --max-vms 8
       --max-vm-queue 16
       --pending-poll-interval 5s
+      --transaction-combined-layout
+      --db-compression zstd
+      --db-cache-size 8192
     depends_on:
       # - lighthouse
       - juno-snapshot

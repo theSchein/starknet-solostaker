@@ -14,8 +14,8 @@ rpc-max-block-scan: 100000
 
 # Sync optimization - Updated to recommended production values
 rpc-call-max-steps: 4000000
-db-cache-size: 8192
-db-max-handles: 2048
+# db-cache-size moved to command line flags (--db-cache-size)
+# db-max-handles deprecated in v0.15.18
 
 # Note: Validator functionality is handled by separate Nethermind Starknet Staking v2 service
 # Juno v0.15.0-rc.3 does not have built-in validator support

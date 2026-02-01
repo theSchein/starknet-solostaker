@@ -119,14 +119,35 @@ check_status() {
 # Update from Git repository and Docker images
 update_images() {
     log "Updating validator from Git repository..."
-    
+
+    # JUNO v0.15.18 MIGRATION WARNING
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${YELLOW}⚠️  IMPORTANT: Juno v0.15.18 Database Migration Notice${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    echo -e "${YELLOW}This update includes Juno's new storage-optimized database layout.${NC}"
+    echo -e "${YELLOW}Expected changes:${NC}"
+    echo -e "${YELLOW}  • Migration time: ~3 hours (validator will be offline)${NC}"
+    echo -e "${YELLOW}  • Storage reduction: 500GB → 200GB (60% reduction)${NC}"
+    echo -e "${YELLOW}  • This change is IRREVERSIBLE${NC}"
+    echo -e "${YELLOW}  • Will become mandatory in Juno v0.16.0${NC}"
+    echo ""
+    echo -e "${YELLOW}The migration will start automatically when Juno restarts.${NC}"
+    echo -e "${YELLOW}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo ""
+    read -p "Do you want to proceed with the update? (yes/no): " -r
+    if [[ ! $REPLY =~ ^[Yy]es$ ]]; then
+        log "Update cancelled by user"
+        exit 0
+    fi
+
     # Check if we're in a git repository
     if [ ! -d ".git" ]; then
         warn "Not a Git repository. Updating Docker images only..."
         update_docker_only
         return
     fi
-    
+
     # Create lightweight backup of sensitive files only (no data folder)
     if [[ "${ENABLE_AUTO_BACKUP:-true}" == "true" ]]; then
         warn "Creating backup of sensitive files..."
