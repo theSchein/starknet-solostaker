@@ -124,7 +124,14 @@ services:
         # Clean old data first
         rm -rf /var/lib/juno/*.sst /var/lib/juno/CURRENT /var/lib/juno/LOCK /var/lib/juno/LOG* /var/lib/juno/MANIFEST* /var/lib/juno/OPTIONS* /var/lib/juno/.snapshot_downloaded;
 
-        if curl -C - -o /var/lib/juno/juno_mainnet.tar \"$${SNAPSHOT_URL}\"; then
+        # Use curl with better timeout and retry settings
+        if curl -L -C - \
+                --connect-timeout 30 \
+                --max-time 14400 \
+                --retry 5 \
+                --retry-delay 30 \
+                --retry-max-time 600 \
+                -o /var/lib/juno/juno_mainnet.tar \"$${SNAPSHOT_URL}\"; then
           echo 'Download completed, verifying tar file...';
           if tar -tf /var/lib/juno/juno_mainnet.tar >/dev/null 2>&1; then
             echo 'Tar file verified, extracting snapshot...';
