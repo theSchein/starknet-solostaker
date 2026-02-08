@@ -35,20 +35,23 @@ show_help() {
     echo "Usage: $0 [COMMAND]"
     echo
     echo "Commands:"
-    echo "  status      - Check validator status and health"
-    echo "  update      - Update from Git repository and restart services"
-    echo "  backup      - Create backup of validator data"
-    echo "  restore     - Restore from backup"
-    echo "  logs        - Show recent logs from all services"
-    echo "  start       - Start all services"
-    echo "  stop        - Stop all services"
-    echo "  restart     - Restart all services"
-    echo "  reset       - Reset and resync (WARNING: deletes all data)"
-    echo "  help        - Show this help message"
+    echo "  status        - Check validator status and health"
+    echo "  update        - Update from Git repository and restart services"
+    echo "  force-update  - Update with forced fresh snapshot download"
+    echo "  backup        - Create backup of validator data"
+    echo "  restore       - Restore from backup"
+    echo "  logs          - Show recent logs from all services"
+    echo "  start         - Start all services"
+    echo "  stop          - Stop all services"
+    echo "  restart       - Restart all services"
+    echo "  reset         - Reset and resync (WARNING: deletes all data)"
+    echo "  reset-juno    - Reset only Juno with fresh snapshot"
+    echo "  help          - Show this help message"
     echo
     echo "Examples:"
     echo "  $0 status"
     echo "  $0 update"
+    echo "  $0 force-update"
     echo "  $0 backup"
     echo "  $0 logs"
 }
@@ -442,51 +445,105 @@ restart_services() {
     docker compose ps
 }
 
+# Force update with fresh snapshot
+force_update() {
+    log "Starting force update with fresh snapshot download..."
+
+    warn "This will force download a fresh Juno snapshot (200GB+)"
+    warn "The validator will be offline for 30-60 minutes"
+    echo
+    read -p "Do you want to proceed? (yes/no): " -r
+    if [[ ! $REPLY =~ ^[Yy]es$ ]]; then
+        log "Force update cancelled by user"
+        exit 0
+    fi
+
+    # Set force snapshot flag
+    export FORCE_SNAPSHOT=true
+
+    # Proceed with normal update
+    update_images
+}
+
+# Reset only Juno with fresh snapshot
+reset_juno_only() {
+    log "Resetting Juno with fresh snapshot..."
+
+    # Check if reset-juno.sh exists
+    if [[ -f "./reset-juno.sh" ]]; then
+        ./reset-juno.sh
+    else
+        warn "reset-juno.sh script not found!"
+        warn "Running inline reset..."
+
+        # Stop services
+        info "Stopping services..."
+        docker compose down
+
+        # Remove Juno data
+        info "Removing Juno data..."
+        rm -rf "${JUNO_DATA_DIR:-./data}/juno"/*
+        rm -f "${JUNO_DATA_DIR:-./data}/juno"/.snapshot_downloaded
+
+        # Force snapshot download
+        export FORCE_SNAPSHOT=true
+
+        # Start services
+        info "Starting services with forced snapshot..."
+        docker compose up -d
+
+        log "Juno reset initiated. Monitor with: docker logs -f starknet-juno-snapshot"
+    fi
+}
+
 # Reset and resync
 reset_validator() {
     warn "This will delete ALL validator data and start fresh sync!"
     warn "This operation cannot be undone!"
     echo
     read -p "Type 'RESET' to confirm: " confirmation
-    
+
     if [[ "$confirmation" != "RESET" ]]; then
         info "Reset cancelled"
         exit 0
     fi
-    
+
     log "Resetting validator..."
-    
+
     # Stop services
     info "Stopping services..."
     docker compose down
-    
+
     # Remove data
     info "Removing all data..."
     rm -rf data/
-    
+
     # Recreate directories
     info "Recreating directories..."
     mkdir -p data/{juno,prometheus,grafana}
     chmod 755 data/{juno,prometheus}
     chmod 777 data/grafana
-    
+
     # Start services
     info "Starting services..."
     docker compose up -d
-    
+
     log "Reset completed. Services will start syncing from scratch."
 }
 
 # Main function
 main() {
     local command="${1:-help}"
-    
+
     case "$command" in
         "status")
             check_status
             ;;
         "update")
             update_images
+            ;;
+        "force-update")
+            force_update
             ;;
         "backup")
             create_backup
@@ -508,6 +565,9 @@ main() {
             ;;
         "reset")
             reset_validator
+            ;;
+        "reset-juno")
+            reset_juno_only
             ;;
         "help"|*)
             show_help

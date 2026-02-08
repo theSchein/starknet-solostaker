@@ -1,5 +1,7 @@
 network: "mainnet"
-eth-node: "http://nethermind:8545"  # Use HTTP instead of WebSocket to avoid JWT auth issues
+# Use external Ethereum RPC endpoints since local nodes are disabled
+# These will be overridden by environment variables if set
+eth-node: "${ETHEREUM_RPC_PRIMARY:-https://eth-mainnet.g.alchemy.com/v2/k3hLPM5T4DGk5VBO_6-3dZzEZOHvye1L}"
 db-path: "/var/lib/juno"
 http: true
 http-port: 6060
@@ -17,6 +19,7 @@ rpc-call-max-steps: 4000000
 # db-cache-size moved to command line flags (--db-cache-size)
 # db-max-handles deprecated in v0.15.18
 
+# Enable L1 verification for proper attestation
+disable-l1-verification: false
+
 # Note: Validator functionality is handled by separate Nethermind Starknet Staking v2 service
-# Juno v0.15.0-rc.3 does not have built-in validator support
-disable-l1-verification: true
