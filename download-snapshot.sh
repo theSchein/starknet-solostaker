@@ -35,7 +35,8 @@ fi
 
 # Configuration
 JUNO_DATA="${JUNO_DATA_DIR:-/media/dov/ethdata}/juno"
-SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet/latest"
+# Using mainnet-newdb for compressed database format compatibility
+SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet-newdb/latest"
 MAX_RETRIES=10
 RETRY_DELAY=30
 
@@ -138,10 +139,11 @@ download_with_aria2() {
 }
 
 # Main download logic
-SNAPSHOT_FILE="$JUNO_DATA/juno_mainnet.tar"
+SNAPSHOT_FILE="$JUNO_DATA/juno_mainnet.tar.zst"
+SNAPSHOT_TAR="$JUNO_DATA/juno_mainnet.tar"
 
-log "Downloading Juno snapshot to: $SNAPSHOT_FILE"
-info "This is approximately 200GB and may take 30-120 minutes"
+log "Downloading Juno snapshot (compressed) to: $SNAPSHOT_FILE"
+info "This is approximately 334GB compressed and may take 30-120 minutes"
 
 # Try primary method (curl)
 if download_with_curl "$SNAPSHOT_URL" "$SNAPSHOT_FILE"; then
@@ -171,9 +173,25 @@ fi
 FILE_SIZE=$(du -h "$SNAPSHOT_FILE" | cut -f1)
 log "Downloaded file size: $FILE_SIZE"
 
+# Check for zstd
+if ! command -v zstd &> /dev/null; then
+    warn "zstd not found, installing..."
+    sudo apt-get update && sudo apt-get install -y zstd
+fi
+
+# Decompress the file
+log "Decompressing snapshot..."
+if zstd -d "$SNAPSHOT_FILE" -o "$SNAPSHOT_TAR"; then
+    log "Decompression successful!"
+    rm -f "$SNAPSHOT_FILE"
+else
+    error "Decompression failed!"
+    exit 1
+fi
+
 # Check if it's a valid tar file
 info "Checking tar file integrity..."
-if tar -tf "$SNAPSHOT_FILE" > /dev/null 2>&1; then
+if tar -tf "$SNAPSHOT_TAR" > /dev/null 2>&1; then
     log "Tar file verification passed!"
 else
     error "Downloaded file is corrupted or incomplete!"
@@ -190,9 +208,9 @@ rm -f "$JUNO_DATA"/*.sst "$JUNO_DATA"/CURRENT "$JUNO_DATA"/LOCK "$JUNO_DATA"/LOG
 
 # Extract with progress
 if command -v pv &> /dev/null; then
-    pv "$SNAPSHOT_FILE" | tar -xf - -C "$JUNO_DATA"
+    pv "$SNAPSHOT_TAR" | tar -xf - -C "$JUNO_DATA"
 else
-    tar -xvf "$SNAPSHOT_FILE" -C "$JUNO_DATA" | \
+    tar -xvf "$SNAPSHOT_TAR" -C "$JUNO_DATA" | \
     while read line; do
         printf "\rExtracting files... %s" "$line"
     done
@@ -207,7 +225,7 @@ if [ -f "$JUNO_DATA/CURRENT" ]; then
 
         # Clean up tar file
         log "Removing temporary download file..."
-        rm -f "$SNAPSHOT_FILE"
+        rm -f "$SNAPSHOT_TAR"
 
         # Mark as downloaded
         touch "$JUNO_DATA/.snapshot_downloaded"

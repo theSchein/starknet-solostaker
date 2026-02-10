@@ -25,8 +25,10 @@ info() {
 
 # Correct location for Juno data (local, not external SSD)
 JUNO_DIR="./data/juno"
-SNAPSHOT_FILE="$JUNO_DIR/juno_mainnet.tar"
-SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet/latest"
+SNAPSHOT_FILE="$JUNO_DIR/juno_mainnet.tar.zst"
+SNAPSHOT_TAR="$JUNO_DIR/juno_mainnet.tar"
+# Using mainnet-newdb for compressed database format compatibility
+SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet-newdb/latest"
 
 log "Resuming Juno snapshot download"
 echo
@@ -45,9 +47,15 @@ fi
 # Create directory if needed
 mkdir -p "$JUNO_DIR"
 
+# Check for zstd
+if ! command -v zstd &> /dev/null; then
+    info "zstd not found, installing..."
+    sudo apt-get update && sudo apt-get install -y zstd
+fi
+
 # Resume download with better retry logic
 log "Resuming download (this will continue from $CURRENT_SIZE)..."
-info "This may take 30-60 minutes for the full ~200GB"
+info "This may take 30-60 minutes for the full ~334GB (compressed)"
 echo
 
 # Try download with retries
@@ -90,9 +98,19 @@ if [ "$SUCCESS" = "true" ]; then
     FINAL_SIZE=$(du -h "$SNAPSHOT_FILE" | cut -f1)
     info "Final size: $FINAL_SIZE"
 
+    # Decompress first
+    log "Decompressing snapshot..."
+    if zstd -d "$SNAPSHOT_FILE" -o "$SNAPSHOT_TAR"; then
+        log "Decompression successful!"
+        rm -f "$SNAPSHOT_FILE"
+    else
+        error "Decompression failed!"
+        exit 1
+    fi
+
     # Verify it's a valid tar
     log "Verifying tar file..."
-    if tar -tf "$SNAPSHOT_FILE" > /dev/null 2>&1; then
+    if tar -tf "$SNAPSHOT_TAR" > /dev/null 2>&1; then
         log "Verification passed!"
 
         # Extract

@@ -30,8 +30,10 @@ info() {
 
 # Configuration
 JUNO_DIR="./data/juno"
-SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet/latest"
-SNAPSHOT_FILE="$JUNO_DIR/juno_mainnet.tar"
+# Using mainnet-newdb for compressed database format compatibility
+SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet-newdb/latest"
+SNAPSHOT_FILE="$JUNO_DIR/juno_mainnet.tar.zst"
+SNAPSHOT_TAR="$JUNO_DIR/juno_mainnet.tar"
 
 log "Manual Juno Snapshot Download"
 warn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -65,8 +67,14 @@ else
     log "Starting fresh download"
 fi
 
+# Check for zstd
+if ! command -v zstd &> /dev/null; then
+    warn "zstd not found, installing..."
+    sudo apt-get update && sudo apt-get install -y zstd
+fi
+
 # Download with wget (more robust than curl for large files)
-log "Downloading snapshot (approximately 200GB)..."
+log "Downloading snapshot (approximately 334GB compressed)..."
 info "Using wget for maximum stability"
 echo
 
@@ -119,6 +127,18 @@ if [ $RESULT -eq 0 ]; then
     if tar -tf "$SNAPSHOT_FILE" > /dev/null 2>&1; then
         log "Verification successful!"
 
+        # Decompress
+        log "Decompressing snapshot..."
+        info "This will take 5-10 minutes"
+
+        if zstd -d "$SNAPSHOT_FILE" -o "$SNAPSHOT_TAR"; then
+            log "Decompression successful!"
+            rm -f "$SNAPSHOT_FILE"
+        else
+            error "Decompression failed!"
+            exit 1
+        fi
+
         # Extract
         log "Extracting snapshot..."
         info "This will take 10-20 minutes"
@@ -127,13 +147,13 @@ if [ $RESULT -eq 0 ]; then
         rm -f "$JUNO_DIR"/*.sst "$JUNO_DIR"/CURRENT "$JUNO_DIR"/LOCK "$JUNO_DIR"/LOG* "$JUNO_DIR"/MANIFEST* "$JUNO_DIR"/OPTIONS*
 
         # Extract with progress
-        pv "$SNAPSHOT_FILE" 2>/dev/null | tar -xf - -C "$JUNO_DIR" || tar -xvf "$SNAPSHOT_FILE" -C "$JUNO_DIR"
+        pv "$SNAPSHOT_TAR" 2>/dev/null | tar -xf - -C "$JUNO_DIR" || tar -xvf "$SNAPSHOT_TAR" -C "$JUNO_DIR"
 
         if [ -f "$JUNO_DIR/CURRENT" ]; then
             log "Extraction complete!"
 
             # Clean up tar
-            rm "$SNAPSHOT_FILE"
+            rm "$SNAPSHOT_TAR"
             touch "$JUNO_DIR/.snapshot_downloaded"
 
             echo

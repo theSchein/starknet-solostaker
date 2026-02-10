@@ -48,8 +48,8 @@ docker compose rm -f juno-snapshot 2>/dev/null || true
 # Step 2: Check current situation
 log "Checking current download status..."
 
-if [ -f "$JUNO_DATA/juno_mainnet.tar" ]; then
-    CURRENT_SIZE=$(du -h "$JUNO_DATA/juno_mainnet.tar" | cut -f1)
+if [ -f "$JUNO_DATA/juno_mainnet.tar.zst" ]; then
+    CURRENT_SIZE=$(du -h "$JUNO_DATA/juno_mainnet.tar.zst" | cut -f1)
     info "Found partial download: $CURRENT_SIZE"
 
     echo
@@ -67,11 +67,15 @@ if [ -f "$JUNO_DATA/juno_mainnet.tar" ]; then
             ;;
         2)
             warn "Deleting partial download and starting fresh..."
-            rm -f "$JUNO_DATA/juno_mainnet.tar"
+            rm -f "$JUNO_DATA/juno_mainnet.tar.zst" "$JUNO_DATA/juno_mainnet.tar"
             ./download-snapshot.sh
             ;;
         3)
             warn "Attempting extraction of partial file..."
+            # Try to decompress first if zst exists
+            if [ -f "$JUNO_DATA/juno_mainnet.tar.zst" ]; then
+                zstd -d "$JUNO_DATA/juno_mainnet.tar.zst" -o "$JUNO_DATA/juno_mainnet.tar" 2>&1 | tail -20
+            fi
             tar -xf "$JUNO_DATA/juno_mainnet.tar" -C "$JUNO_DATA" 2>&1 | tail -20
             if [ -f "$JUNO_DATA/CURRENT" ]; then
                 info "Extraction succeeded, but data may be incomplete"

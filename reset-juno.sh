@@ -118,9 +118,9 @@ while true; do
     fi
 
     # Show download progress
-    if [[ -f "${JUNO_DATA_DIR:-./data}/juno/juno_mainnet.tar" ]]; then
-        TAR_SIZE=$(du -sh "${JUNO_DATA_DIR:-./data}/juno/juno_mainnet.tar" 2>/dev/null | cut -f1 || echo "0")
-        echo -ne "\rDownload progress: $TAR_SIZE downloaded..."
+    if [[ -f "${JUNO_DATA_DIR:-./data}/juno/juno_mainnet.tar.zst" ]]; then
+        TAR_SIZE=$(du -sh "${JUNO_DATA_DIR:-./data}/juno/juno_mainnet.tar.zst" 2>/dev/null | cut -f1 || echo "0")
+        echo -ne "\rDownload progress: $TAR_SIZE downloaded (compressed)..."
     fi
 
     sleep 10
