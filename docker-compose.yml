@@ -108,8 +108,8 @@ services:
       if [ \"$${FORCE_SNAPSHOT}\" = \"true\" ]; then
         echo 'Force snapshot mode enabled, will download fresh snapshot';
         NEED_DOWNLOAD=true;
-      elif [ ! -f /var/lib/juno/CURRENT ]; then
-        echo 'No database found, will download snapshot';
+      elif [ ! -f /var/lib/juno/CURRENT ] || [ -z "\$(ls /var/lib/juno/MANIFEST-* 2>/dev/null)" ]; then
+        echo 'No valid database found (missing CURRENT or MANIFEST files), will download snapshot';
         NEED_DOWNLOAD=true;
       elif [ -f /var/lib/juno/.snapshot_downloaded ]; then
         SNAPSHOT_TIME=\$$(stat -c %Y /var/lib/juno/.snapshot_downloaded 2>/dev/null || stat -f %m /var/lib/juno/.snapshot_downloaded 2>/dev/null || echo 0);
@@ -131,7 +131,7 @@ services:
                 --retry 5 \
                 --retry-delay 30 \
                 --retry-max-time 600 \
-                -o /var/lib/juno/juno_mainnet.tar \"$${SNAPSHOT_URL}\"; then
+                -o /var/lib/juno/juno_mainnet.tar \"${SNAPSHOT_URL}\"; then
           echo 'Download completed, verifying tar file...';
           if tar -tf /var/lib/juno/juno_mainnet.tar >/dev/null 2>&1; then
             echo 'Tar file verified, extracting snapshot...';
