@@ -127,33 +127,38 @@ if [ $RESULT -eq 0 ]; then
     if tar -tf "$SNAPSHOT_FILE" > /dev/null 2>&1; then
         log "Verification successful!"
 
-        # Decompress
-        log "Decompressing snapshot..."
-        info "This will take 5-10 minutes"
+        # Check disk space
+        AVAILABLE_SPACE=$(df "$JUNO_DIR" | tail -1 | awk '{print $4}')
+        log "Available disk space: $((AVAILABLE_SPACE / 1024 / 1024))GB"
 
-        if zstd -d "$SNAPSHOT_FILE" -o "$SNAPSHOT_TAR"; then
-            log "Decompression successful!"
-            rm -f "$SNAPSHOT_FILE"
-        else
-            error "Decompression failed!"
+        # Verify file size
+        FILE_SIZE=$(stat -c%s "$SNAPSHOT_FILE" 2>/dev/null || stat -f%z "$SNAPSHOT_FILE" 2>/dev/null || echo 0)
+        log "Downloaded file size: $((FILE_SIZE / 1024 / 1024 / 1024))GB"
+
+        if [ "$FILE_SIZE" -lt 1000000000 ]; then
+            error "Downloaded file too small, likely incomplete"
             exit 1
         fi
 
-        # Extract
-        log "Extracting snapshot..."
-        info "This will take 10-20 minutes"
+        # Stream decompress and extract to save disk space
+        log "Decompressing and extracting snapshot..."
+        info "Streaming extraction to save disk space (15-30 minutes)"
 
         # Clean old data
         rm -f "$JUNO_DIR"/*.sst "$JUNO_DIR"/CURRENT "$JUNO_DIR"/LOCK "$JUNO_DIR"/LOG* "$JUNO_DIR"/MANIFEST* "$JUNO_DIR"/OPTIONS*
 
         # Extract with progress
-        pv "$SNAPSHOT_TAR" 2>/dev/null | tar -xf - -C "$JUNO_DIR" || tar -xvf "$SNAPSHOT_TAR" -C "$JUNO_DIR"
+        if command -v pv &> /dev/null; then
+            pv "$SNAPSHOT_FILE" | zstd -dc | tar -xf - -C "$JUNO_DIR"
+        else
+            zstd -dc "$SNAPSHOT_FILE" | tar -xf - -C "$JUNO_DIR"
+        fi
 
         if [ -f "$JUNO_DIR/CURRENT" ]; then
             log "Extraction complete!"
 
-            # Clean up tar
-            rm "$SNAPSHOT_TAR"
+            # Clean up compressed file
+            rm "$SNAPSHOT_FILE"
             touch "$JUNO_DIR/.snapshot_downloaded"
 
             echo

@@ -128,6 +128,10 @@ services:
         # Clean old data first
         rm -rf /var/lib/juno/*.sst /var/lib/juno/CURRENT /var/lib/juno/LOCK /var/lib/juno/LOG* /var/lib/juno/MANIFEST* /var/lib/juno/OPTIONS* /var/lib/juno/.snapshot_downloaded;
 
+        # Check disk space first
+        echo "Checking available disk space...";
+        df -h /var/lib/juno;
+
         # Download compressed snapshot
         if curl -L -C - \
                 --connect-timeout 30 \
@@ -136,36 +140,34 @@ services:
                 --retry-delay 30 \
                 --retry-max-time 600 \
                 -o /var/lib/juno/juno_mainnet.tar.zst "$$SNAPSHOT_URL"; then
-          echo "Download completed, decompressing...";
+          echo "Download completed successfully";
 
-          # Decompress the zst file
-          if zstd -d /var/lib/juno/juno_mainnet.tar.zst -o /var/lib/juno/juno_mainnet.tar; then
-            echo "Decompression successful, verifying tar file...";
-            rm -f /var/lib/juno/juno_mainnet.tar.zst;
+          # Verify file size
+          FILE_SIZE=$(stat -c%s /var/lib/juno/juno_mainnet.tar.zst 2>/dev/null || stat -f%z /var/lib/juno/juno_mainnet.tar.zst 2>/dev/null || echo 0);
+          echo "Downloaded file size: $$((FILE_SIZE / 1024 / 1024 / 1024))GB";
 
-            if tar -tf /var/lib/juno/juno_mainnet.tar >/dev/null 2>&1; then
-              echo "Tar file verified, extracting snapshot...";
-              mkdir -p /var/lib/juno;
-              if tar -xf /var/lib/juno/juno_mainnet.tar -C /var/lib/juno; then
-                echo "Extraction successful, verifying database files...";
-                if [ -f /var/lib/juno/CURRENT ] && [ "$(ls /var/lib/juno/*.sst 2>/dev/null | wc -l)" -gt 100 ]; then
-                  rm -f /var/lib/juno/juno_mainnet.tar;
-                  touch /var/lib/juno/.snapshot_downloaded;
-                  echo "Snapshot downloaded and extracted successfully!";
-                else
-                  echo "ERROR: Extraction incomplete - missing database files";
-                  exit 1;
-                fi;
-              else
-                echo "ERROR: Tar extraction failed";
-                exit 1;
-              fi;
+          if [ "$$FILE_SIZE" -lt 1000000000 ]; then
+            echo "ERROR: Downloaded file too small, likely incomplete";
+            exit 1;
+          fi;
+
+          echo "Decompressing and extracting snapshot (streaming to save disk space)...";
+          # Stream decompress directly to tar to save disk space
+          if zstd -dc /var/lib/juno/juno_mainnet.tar.zst | tar -xf - -C /var/lib/juno; then
+            echo "Extraction successful, verifying database files...";
+            if [ -f /var/lib/juno/CURRENT ] && [ "$(ls /var/lib/juno/*.sst 2>/dev/null | wc -l)" -gt 100 ]; then
+              echo "Database files verified, cleaning up...";
+              rm -f /var/lib/juno/juno_mainnet.tar.zst;
+              touch /var/lib/juno/.snapshot_downloaded;
+              echo "Snapshot downloaded and extracted successfully!";
             else
-              echo "ERROR: Downloaded tar file is corrupted";
+              echo "ERROR: Extraction incomplete - missing database files";
+              echo "Found $(ls /var/lib/juno/*.sst 2>/dev/null | wc -l) .sst files";
               exit 1;
             fi;
           else
-            echo "ERROR: Decompression failed";
+            echo "ERROR: Decompression or extraction failed";
+            echo "Keeping .zst file for retry: /var/lib/juno/juno_mainnet.tar.zst";
             exit 1;
           fi;
         else

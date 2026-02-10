@@ -179,53 +179,53 @@ if ! command -v zstd &> /dev/null; then
     sudo apt-get update && sudo apt-get install -y zstd
 fi
 
-# Decompress the file
-log "Decompressing snapshot..."
-if zstd -d "$SNAPSHOT_FILE" -o "$SNAPSHOT_TAR"; then
-    log "Decompression successful!"
-    rm -f "$SNAPSHOT_FILE"
-else
-    error "Decompression failed!"
+# Check disk space
+AVAILABLE_SPACE=$(df "$JUNO_DATA" | tail -1 | awk '{print $4}')
+log "Available disk space: $((AVAILABLE_SPACE / 1024 / 1024))GB"
+
+if [ $AVAILABLE_SPACE -lt 400000000 ]; then
+    error "Insufficient disk space. Need at least 400GB free."
     exit 1
 fi
 
-# Check if it's a valid tar file
-info "Checking tar file integrity..."
-if tar -tf "$SNAPSHOT_TAR" > /dev/null 2>&1; then
-    log "Tar file verification passed!"
-else
-    error "Downloaded file is corrupted or incomplete!"
-    error "The file may be partially downloaded. You can try running this script again to resume."
-    exit 1
+# Verify downloaded file size
+if [ -f "$SNAPSHOT_FILE" ]; then
+    FILE_SIZE=$(stat -c%s "$SNAPSHOT_FILE" 2>/dev/null || stat -f%z "$SNAPSHOT_FILE" 2>/dev/null || echo 0)
+    log "Downloaded file size: $((FILE_SIZE / 1024 / 1024 / 1024))GB"
+
+    if [ "$FILE_SIZE" -lt 1000000000 ]; then
+        error "Downloaded file too small, likely incomplete. Deleting and retrying..."
+        rm -f "$SNAPSHOT_FILE"
+        exit 1
+    fi
 fi
 
-# Extract the snapshot
-log "Extracting snapshot..."
-info "This may take 10-20 minutes..."
+# Extract the snapshot (streaming decompression to save space)
+log "Decompressing and extracting snapshot..."
+info "This may take 15-30 minutes..."
 
 # Clean old database files first
 rm -f "$JUNO_DATA"/*.sst "$JUNO_DATA"/CURRENT "$JUNO_DATA"/LOCK "$JUNO_DATA"/LOG* "$JUNO_DATA"/MANIFEST* "$JUNO_DATA"/OPTIONS*
 
-# Extract with progress
+# Stream decompress and extract to save disk space
+log "Streaming decompression directly to extraction (saves ~350GB disk space)..."
 if command -v pv &> /dev/null; then
-    pv "$SNAPSHOT_TAR" | tar -xf - -C "$JUNO_DATA"
+    pv "$SNAPSHOT_FILE" | zstd -dc | tar -xf - -C "$JUNO_DATA"
 else
-    tar -xvf "$SNAPSHOT_TAR" -C "$JUNO_DATA" | \
-    while read line; do
-        printf "\rExtracting files... %s" "$line"
-    done
-    echo
+    zstd -dc "$SNAPSHOT_FILE" | tar -xf - -C "$JUNO_DATA"
 fi
 
+EXTRACT_RESULT=$?
+
 # Verify extraction
-if [ -f "$JUNO_DATA/CURRENT" ]; then
+if [ $EXTRACT_RESULT -eq 0 ] && [ -f "$JUNO_DATA/CURRENT" ]; then
     SST_COUNT=$(ls "$JUNO_DATA"/*.sst 2>/dev/null | wc -l)
     if [ $SST_COUNT -gt 100 ]; then
         log "Extraction successful! Found $SST_COUNT database files"
 
-        # Clean up tar file
+        # Clean up compressed file
         log "Removing temporary download file..."
-        rm -f "$SNAPSHOT_TAR"
+        rm -f "$SNAPSHOT_FILE"
 
         # Mark as downloaded
         touch "$JUNO_DATA/.snapshot_downloaded"

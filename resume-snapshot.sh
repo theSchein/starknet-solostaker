@@ -98,29 +98,33 @@ if [ "$SUCCESS" = "true" ]; then
     FINAL_SIZE=$(du -h "$SNAPSHOT_FILE" | cut -f1)
     info "Final size: $FINAL_SIZE"
 
-    # Decompress first
-    log "Decompressing snapshot..."
-    if zstd -d "$SNAPSHOT_FILE" -o "$SNAPSHOT_TAR"; then
-        log "Decompression successful!"
-        rm -f "$SNAPSHOT_FILE"
-    else
-        error "Decompression failed!"
+    # Check disk space
+    AVAILABLE_SPACE=$(df "$JUNO_DIR" | tail -1 | awk '{print $4}')
+    log "Available disk space: $((AVAILABLE_SPACE / 1024 / 1024))GB"
+
+    # Verify file size
+    FILE_SIZE=$(stat -c%s "$SNAPSHOT_FILE" 2>/dev/null || stat -f%z "$SNAPSHOT_FILE" 2>/dev/null || echo 0)
+    log "Downloaded file size: $((FILE_SIZE / 1024 / 1024 / 1024))GB"
+
+    if [ "$FILE_SIZE" -lt 1000000000 ]; then
+        error "Downloaded file too small, likely incomplete"
         exit 1
     fi
 
-    # Verify it's a valid tar
-    log "Verifying tar file..."
-    if tar -tf "$SNAPSHOT_TAR" > /dev/null 2>&1; then
-        log "Verification passed!"
+    # Stream decompress and extract to save disk space
+    log "Decompressing and extracting snapshot..."
+    info "Streaming extraction to save disk space (15-30 minutes)"
 
-        # Extract
-        log "Extracting snapshot (this will take 10-20 minutes)..."
-        cd "$JUNO_DIR"
-        tar -xf juno_mainnet.tar
+    # Clean old data first
+    rm -f "$JUNO_DIR"/*.sst "$JUNO_DIR"/CURRENT "$JUNO_DIR"/LOCK "$JUNO_DIR"/LOG* "$JUNO_DIR"/MANIFEST* "$JUNO_DIR"/OPTIONS*
+
+    cd "$JUNO_DIR"
+    if zstd -dc "$SNAPSHOT_FILE" | tar -xf - ; then
+        log "Extraction successful!"
 
         if [ -f "CURRENT" ]; then
             log "Extraction successful!"
-            rm juno_mainnet.tar
+            rm "$SNAPSHOT_FILE"
             touch .snapshot_downloaded
 
             echo
