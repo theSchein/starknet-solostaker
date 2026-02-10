@@ -100,26 +100,26 @@ services:
       - SNAPSHOT_URL=https://juno-snapshots.nethermind.io/files/mainnet/latest
       - FORCE_SNAPSHOT=${FORCE_SNAPSHOT:-false}
     command: >
-      sh -c "
+      sh -c '
       # Check if we need to download snapshot (force mode or missing/old data)
       NEED_DOWNLOAD=false;
-      SEVEN_DAYS_AGO=\$$(date -d '7 days ago' +%s 2>/dev/null || date -v-7d +%s 2>/dev/null || echo 0);
+      SEVEN_DAYS_AGO=$(date -d "7 days ago" +%s 2>/dev/null || date -v-7d +%s 2>/dev/null || echo 0);
 
-      if [ \"$FORCE_SNAPSHOT\" = \"true\" ]; then
-        echo 'Force snapshot mode enabled, will download fresh snapshot';
+      if [ "$$FORCE_SNAPSHOT" = "true" ]; then
+        echo "Force snapshot mode enabled, will download fresh snapshot";
         NEED_DOWNLOAD=true;
-      elif [ ! -f /var/lib/juno/CURRENT ] || [ -z "\$(ls /var/lib/juno/MANIFEST-* 2>/dev/null)" ]; then
+      elif [ ! -f /var/lib/juno/CURRENT ] || [ -z "$(ls /var/lib/juno/MANIFEST-* 2>/dev/null)" ]; then
         echo 'No valid database found (missing CURRENT or MANIFEST files), will download snapshot';
         NEED_DOWNLOAD=true;
       elif [ -f /var/lib/juno/.snapshot_downloaded ]; then
-        SNAPSHOT_TIME=\$$(stat -c %Y /var/lib/juno/.snapshot_downloaded 2>/dev/null || stat -f %m /var/lib/juno/.snapshot_downloaded 2>/dev/null || echo 0);
-        if [ \$$SNAPSHOT_TIME -lt \$$SEVEN_DAYS_AGO ]; then
+        SNAPSHOT_TIME=$(stat -c %Y /var/lib/juno/.snapshot_downloaded 2>/dev/null || stat -f %m /var/lib/juno/.snapshot_downloaded 2>/dev/null || echo 0);
+        if [ $SNAPSHOT_TIME -lt $SEVEN_DAYS_AGO ]; then
           echo 'Snapshot is more than 7 days old, will download fresh snapshot';
           NEED_DOWNLOAD=true;
         fi;
       fi;
 
-      if [ \"\$$NEED_DOWNLOAD\" = \"true\" ]; then
+      if [ "$NEED_DOWNLOAD" = "true" ]; then
         echo 'Downloading Juno snapshot... This may take 30-60 minutes';
         # Clean old data first
         rm -rf /var/lib/juno/*.sst /var/lib/juno/CURRENT /var/lib/juno/LOCK /var/lib/juno/LOG* /var/lib/juno/MANIFEST* /var/lib/juno/OPTIONS* /var/lib/juno/.snapshot_downloaded;
@@ -131,14 +131,14 @@ services:
                 --retry 5 \
                 --retry-delay 30 \
                 --retry-max-time 600 \
-                -o /var/lib/juno/juno_mainnet.tar \"$SNAPSHOT_URL\"; then
+                -o /var/lib/juno/juno_mainnet.tar "$$SNAPSHOT_URL"; then
           echo 'Download completed, verifying tar file...';
           if tar -tf /var/lib/juno/juno_mainnet.tar >/dev/null 2>&1; then
             echo 'Tar file verified, extracting snapshot...';
             mkdir -p /var/lib/juno;
             if tar -xf /var/lib/juno/juno_mainnet.tar -C /var/lib/juno; then
               echo 'Extraction successful, verifying database files...';
-              if [ -f /var/lib/juno/CURRENT ] && [ \"\$(ls /var/lib/juno/*.sst 2>/dev/null | wc -l)\" -gt 100 ]; then
+              if [ -f /var/lib/juno/CURRENT ] && [ "$(ls /var/lib/juno/*.sst 2>/dev/null | wc -l)" -gt 100 ]; then
                 rm -f /var/lib/juno/juno_mainnet.tar;
                 touch /var/lib/juno/.snapshot_downloaded;
                 echo 'Snapshot downloaded and extracted successfully!';
@@ -161,7 +161,7 @@ services:
       else
         echo 'Using existing snapshot';
       fi
-      "
+      '
     networks:
       - starknet-network
 
