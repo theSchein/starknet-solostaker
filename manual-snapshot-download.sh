@@ -30,8 +30,8 @@ info() {
 
 # Configuration
 JUNO_DIR="./data/juno"
-# Using mainnet-newdb for compressed database format compatibility
-SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet-newdb/latest"
+# Using standard mainnet snapshot
+SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet/latest"
 SNAPSHOT_FILE="$JUNO_DIR/juno_mainnet.tar.zst"
 SNAPSHOT_TAR="$JUNO_DIR/juno_mainnet.tar"
 
@@ -74,7 +74,7 @@ if ! command -v zstd &> /dev/null; then
 fi
 
 # Download with wget (more robust than curl for large files)
-log "Downloading snapshot (approximately 334GB compressed)..."
+log "Downloading snapshot (approximately 351GB compressed)..."
 info "Using wget for maximum stability"
 echo
 
@@ -147,11 +147,11 @@ if [ $RESULT -eq 0 ]; then
         # Clean old data
         rm -f "$JUNO_DIR"/*.sst "$JUNO_DIR"/CURRENT "$JUNO_DIR"/LOCK "$JUNO_DIR"/LOG* "$JUNO_DIR"/MANIFEST* "$JUNO_DIR"/OPTIONS*
 
-        # Extract with progress
+        # Extract with progress (matching Juno docs)
         if command -v pv &> /dev/null; then
-            pv "$SNAPSHOT_FILE" | zstd -dc | tar -xf - -C "$JUNO_DIR"
+            pv "$SNAPSHOT_FILE" | zstd -d -c | tar -xvf - -C "$JUNO_DIR" > /dev/null
         else
-            zstd -dc "$SNAPSHOT_FILE" | tar -xf - -C "$JUNO_DIR"
+            zstd -d "$SNAPSHOT_FILE" -c | tar -xvf - -C "$JUNO_DIR" > /dev/null
         fi
 
         if [ -f "$JUNO_DIR/CURRENT" ]; then

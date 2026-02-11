@@ -97,7 +97,7 @@ services:
     volumes:
       - ${JUNO_DATA_DIR:-./data}/juno:/var/lib/juno
     environment:
-      - SNAPSHOT_URL=https://juno-snapshots.nethermind.io/files/mainnet-newdb/latest
+      - SNAPSHOT_URL=https://juno-snapshots.nethermind.io/files/mainnet/latest
       - FORCE_SNAPSHOT=${FORCE_SNAPSHOT:-false}
     command: >
       sh -c '
@@ -122,8 +122,8 @@ services:
       fi;
 
       if [ "$$NEED_DOWNLOAD" = "true" ]; then
-        echo "Downloading Juno snapshot (mainnet-newdb format)... This may take 30-60 minutes";
-        echo "Using compressed snapshot for smaller size and database compression compatibility";
+        echo "Downloading Juno snapshot... This may take 30-60 minutes";
+        echo "Using standard mainnet snapshot (351GB compressed)";
 
         # Clean old data first
         rm -rf /var/lib/juno/*.sst /var/lib/juno/CURRENT /var/lib/juno/LOCK /var/lib/juno/LOG* /var/lib/juno/MANIFEST* /var/lib/juno/OPTIONS* /var/lib/juno/.snapshot_downloaded;
@@ -152,8 +152,8 @@ services:
           fi;
 
           echo "Decompressing and extracting snapshot (streaming to save disk space)...";
-          # Stream decompress directly to tar to save disk space
-          if zstd -dc /var/lib/juno/juno_mainnet.tar.zst | tar -xf - -C /var/lib/juno; then
+          # Stream decompress directly to tar to save disk space (matching Juno docs)
+          if zstd -d /var/lib/juno/juno_mainnet.tar.zst -c | tar -xvf - -C /var/lib/juno; then
             echo "Extraction successful, verifying database files...";
             if [ -f /var/lib/juno/CURRENT ] && [ "$(ls /var/lib/juno/*.sst 2>/dev/null | wc -l)" -gt 100 ]; then
               echo "Database files verified, cleaning up...";
@@ -208,8 +208,6 @@ services:
       --max-vms 8
       --max-vm-queue 16
       --pending-poll-interval 5s
-      --transaction-combined-layout
-      --db-compression zstd
       --db-cache-size 8192
     depends_on:
       # - lighthouse

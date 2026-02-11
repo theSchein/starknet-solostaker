@@ -27,8 +27,8 @@ info() {
 JUNO_DIR="./data/juno"
 SNAPSHOT_FILE="$JUNO_DIR/juno_mainnet.tar.zst"
 SNAPSHOT_TAR="$JUNO_DIR/juno_mainnet.tar"
-# Using mainnet-newdb for compressed database format compatibility
-SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet-newdb/latest"
+# Using standard mainnet snapshot
+SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet/latest"
 
 log "Resuming Juno snapshot download"
 echo
@@ -55,7 +55,7 @@ fi
 
 # Resume download with better retry logic
 log "Resuming download (this will continue from $CURRENT_SIZE)..."
-info "This may take 30-60 minutes for the full ~334GB (compressed)"
+info "This may take 30-60 minutes for the full ~351GB (compressed)"
 echo
 
 # Try download with retries
@@ -119,7 +119,7 @@ if [ "$SUCCESS" = "true" ]; then
     rm -f "$JUNO_DIR"/*.sst "$JUNO_DIR"/CURRENT "$JUNO_DIR"/LOCK "$JUNO_DIR"/LOG* "$JUNO_DIR"/MANIFEST* "$JUNO_DIR"/OPTIONS*
 
     cd "$JUNO_DIR"
-    if zstd -dc "$SNAPSHOT_FILE" | tar -xf - ; then
+    if zstd -d "$SNAPSHOT_FILE" -c | tar -xvf - > /dev/null ; then
         log "Extraction successful!"
 
         if [ -f "CURRENT" ]; then

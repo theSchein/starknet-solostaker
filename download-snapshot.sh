@@ -35,8 +35,8 @@ fi
 
 # Configuration
 JUNO_DATA="${JUNO_DATA_DIR:-/media/dov/ethdata}/juno"
-# Using mainnet-newdb for compressed database format compatibility
-SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet-newdb/latest"
+# Using standard mainnet snapshot
+SNAPSHOT_URL="https://juno-snapshots.nethermind.io/files/mainnet/latest"
 MAX_RETRIES=10
 RETRY_DELAY=30
 
@@ -143,7 +143,7 @@ SNAPSHOT_FILE="$JUNO_DATA/juno_mainnet.tar.zst"
 SNAPSHOT_TAR="$JUNO_DATA/juno_mainnet.tar"
 
 log "Downloading Juno snapshot (compressed) to: $SNAPSHOT_FILE"
-info "This is approximately 334GB compressed and may take 30-120 minutes"
+info "This is approximately 351GB compressed and may take 30-120 minutes"
 
 # Try primary method (curl)
 if download_with_curl "$SNAPSHOT_URL" "$SNAPSHOT_FILE"; then
@@ -207,12 +207,12 @@ info "This may take 15-30 minutes..."
 # Clean old database files first
 rm -f "$JUNO_DATA"/*.sst "$JUNO_DATA"/CURRENT "$JUNO_DATA"/LOCK "$JUNO_DATA"/LOG* "$JUNO_DATA"/MANIFEST* "$JUNO_DATA"/OPTIONS*
 
-# Stream decompress and extract to save disk space
-log "Streaming decompression directly to extraction (saves ~350GB disk space)..."
+# Stream decompress and extract to save disk space (matching Juno docs)
+log "Streaming decompression directly to extraction (saves disk space)..."
 if command -v pv &> /dev/null; then
-    pv "$SNAPSHOT_FILE" | zstd -dc | tar -xf - -C "$JUNO_DATA"
+    pv "$SNAPSHOT_FILE" | zstd -d -c | tar -xvf - -C "$JUNO_DATA" > /dev/null
 else
-    zstd -dc "$SNAPSHOT_FILE" | tar -xf - -C "$JUNO_DATA"
+    zstd -d "$SNAPSHOT_FILE" -c | tar -xvf - -C "$JUNO_DATA" > /dev/null
 fi
 
 EXTRACT_RESULT=$?
