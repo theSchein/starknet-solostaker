@@ -90,7 +90,9 @@ services:
   #   networks:
   #     - starknet-network
 
-  juno-snapshot:
+  # DISABLED - Using existing database instead of downloading snapshot
+  # To re-enable, uncomment this service and add 'juno-snapshot' to juno's depends_on
+  juno-snapshot-disabled:
     image: alpine:latest
     container_name: starknet-juno-snapshot
     user: root
@@ -209,9 +211,9 @@ services:
       --max-vm-queue 16
       --pending-poll-interval 5s
       --db-cache-size 8192
-    depends_on:
+    depends_on: []
       # - lighthouse
-      - juno-snapshot
+      # - juno-snapshot  # Disabled - using existing database
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6060/health"]
       interval: 30s
