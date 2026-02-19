@@ -90,9 +90,8 @@ services:
   #   networks:
   #     - starknet-network
 
-  # DISABLED - Using existing database instead of downloading snapshot
-  # To re-enable, uncomment this service and add 'juno-snapshot' to juno's depends_on
-  juno-snapshot-disabled:
+  # Juno snapshot download service - downloads ~337GB compressed snapshot
+  juno-snapshot:
     image: alpine:latest
     container_name: starknet-juno-snapshot
     user: root
@@ -148,14 +147,14 @@ services:
           FILE_SIZE=$(stat -c%s /var/lib/juno/juno_mainnet.tar.zst 2>/dev/null || stat -f%z /var/lib/juno/juno_mainnet.tar.zst 2>/dev/null || echo 0);
           echo "Downloaded file size: $$((FILE_SIZE / 1024 / 1024 / 1024))GB";
 
-          if [ "$$FILE_SIZE" -lt 1000000000 ]; then
+          if [ "$$FILE_SIZE" -lt 300000000000 ]; then
             echo "ERROR: Downloaded file too small, likely incomplete";
             exit 1;
           fi;
 
           echo "Decompressing and extracting snapshot (streaming to save disk space)...";
           # Stream decompress directly to tar to save disk space (matching Juno docs)
-          if zstd -d /var/lib/juno/juno_mainnet.tar.zst -c | tar -xvf - -C /var/lib/juno; then
+          if zstd -d /var/lib/juno/juno_mainnet.tar.zst -c | tar -xf - -C /var/lib/juno; then
             echo "Extraction successful, verifying database files...";
             if [ -f /var/lib/juno/CURRENT ] && [ "$(ls /var/lib/juno/*.sst 2>/dev/null | wc -l)" -gt 100 ]; then
               echo "Database files verified, cleaning up...";
@@ -211,9 +210,9 @@ services:
       --max-vm-queue 16
       --pending-poll-interval 5s
       --db-cache-size 8192
-    depends_on: []
+    depends_on:
+      - juno-snapshot
       # - lighthouse
-      # - juno-snapshot  # Disabled - using existing database
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:6060/health"]
       interval: 30s

@@ -122,10 +122,9 @@ if [ $RESULT -eq 0 ]; then
     SIZE=$(du -h "$SNAPSHOT_FILE" | cut -f1)
     info "Final size: $SIZE"
 
-    # Verify tar file
-    log "Verifying tar file integrity..."
-    if tar -tf "$SNAPSHOT_FILE" > /dev/null 2>&1; then
-        log "Verification successful!"
+    # Skip tar verification since it's a compressed .tar.zst file
+    log "Preparing to extract snapshot..."
+    if [ -f "$SNAPSHOT_FILE" ]; then
 
         # Check disk space
         AVAILABLE_SPACE=$(df "$JUNO_DIR" | tail -1 | awk '{print $4}')
@@ -135,7 +134,7 @@ if [ $RESULT -eq 0 ]; then
         FILE_SIZE=$(stat -c%s "$SNAPSHOT_FILE" 2>/dev/null || stat -f%z "$SNAPSHOT_FILE" 2>/dev/null || echo 0)
         log "Downloaded file size: $((FILE_SIZE / 1024 / 1024 / 1024))GB"
 
-        if [ "$FILE_SIZE" -lt 1000000000 ]; then
+        if [ "$FILE_SIZE" -lt 300000000000 ]; then
             error "Downloaded file too small, likely incomplete"
             exit 1
         fi
@@ -151,7 +150,7 @@ if [ $RESULT -eq 0 ]; then
         if command -v pv &> /dev/null; then
             pv "$SNAPSHOT_FILE" | zstd -d -c | tar -xvf - -C "$JUNO_DIR" > /dev/null
         else
-            zstd -d "$SNAPSHOT_FILE" -c | tar -xvf - -C "$JUNO_DIR" > /dev/null
+            zstd -d "$SNAPSHOT_FILE" -c | tar -xf - -C "$JUNO_DIR"
         fi
 
         if [ -f "$JUNO_DIR/CURRENT" ]; then
